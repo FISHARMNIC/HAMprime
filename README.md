@@ -15,6 +15,7 @@ WIP new programming language that runs on Linux
 * Nested If/elif statements
 * Math
 * Printing
+* While loops
 
 ## Examples
 ### All of the following code compiles and runs
@@ -88,3 +89,8 @@ entry function<> -> u32
     }
 }
 ```
+
+## Changelog 2023
+First uploaded on Nov 4 with working variables, functions, formats, printing
+* Nov 4 - added if/elif
+* Nov 5 - added else and while
