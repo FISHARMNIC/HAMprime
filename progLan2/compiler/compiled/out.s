@@ -6,11 +6,13 @@
 
 .data
 ######## user data section ########
+i: .4byte 0
+b: .4byte 0
+_compLITERAL4: .asciz "\n"
 __TEMP8_0__: .byte
 __TEMP8_1__: .byte
-__TEMP8_2__: .byte
-__TEMP8_3__: .byte
-__TEMP8_4__: .byte
+__TEMP32_0__: .4byte
+__TEMP32_1__: .4byte
 ###################################
 .text
 
@@ -30,86 +32,59 @@ main:
     ret
 entry:
 swap_stack
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov $111, %eax
-mov $222, %ebx
-cmp %ebx, %eax
-setg %cl
-mov %cl, __TEMP8_0__
-cmpb $1, __TEMP8_0__
-jne LABEL0
-pushl $333
-swap_stack
-call put_int
-swap_stack
-jmp LABEL1
 LABEL0:
 mov $0, %cl
 xor %eax, %eax; xor %ebx, %ebx
-mov $444, %eax
-mov $555, %ebx
+mov i, %eax
+mov $100, %ebx
+cmp %ebx, %eax
+setl %cl
+mov %cl, __TEMP8_0__
+cmpb $1, __TEMP8_0__
+jne LABEL1
+mov $0, %edx
+mov %edx, b
+LABEL2:
+mov $0, %cl
+xor %eax, %eax; xor %ebx, %ebx
+mov b, %eax
+mov $20, %ebx
 cmp %ebx, %eax
 setl %cl
 mov %cl, __TEMP8_1__
 cmpb $1, __TEMP8_1__
-jne LABEL2
-pushl $777
-swap_stack
-call put_int
-swap_stack
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov $222, %eax
-mov $444, %ebx
-cmp %ebx, %eax
-setg %cl
-mov %cl, __TEMP8_2__
-cmpb $1, __TEMP8_2__
 jne LABEL3
-pushl $789
+pushl b
 swap_stack
 call put_int
 swap_stack
-jmp LABEL4
+pusha
+xor %eax, %eax
+xor %ebx, %ebx
+xor %ecx, %ecx
+mov b, %eax
+add $1, %eax
+mov %eax, __TEMP32_0__
+popa
+mov __TEMP32_0__, %edx
+mov %edx, b
+jmp LABEL2
 LABEL3:
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov $123, %eax
-mov $456, %ebx
-cmp %ebx, %eax
-setl %cl
-mov %cl, __TEMP8_3__
-cmpb $1, __TEMP8_3__
-jne LABEL5
-pushl $432
+pushl $_compLITERAL4
 swap_stack
-call put_int
+call puts
 swap_stack
-jmp LABEL4
-LABEL5:
-LABEL4:
-pushl $987
-swap_stack
-call put_int
-swap_stack
-jmp LABEL1
-LABEL2:
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov $333, %eax
-mov $888, %ebx
-cmp %ebx, %eax
-sete %cl
-mov %cl, __TEMP8_4__
-cmpb $1, __TEMP8_4__
-jne LABEL6
-pushl $321
-swap_stack
-call put_int
-swap_stack
-jmp LABEL1
-LABEL6:
+pusha
+xor %eax, %eax
+xor %ebx, %ebx
+xor %ecx, %ecx
+mov i, %eax
+add $1, %eax
+mov %eax, __TEMP32_1__
+popa
+mov __TEMP32_1__, %edx
+mov %edx, i
+jmp LABEL0
 LABEL1:
 swap_stack
 ret

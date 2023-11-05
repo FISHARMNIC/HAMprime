@@ -1,5 +1,9 @@
-// TODO: FOR SOME REASON THERE IS A CIRCULAR ARRAY
-// AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
+/* TODO: 
+- [HIGH]FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
+- [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
+- [HIGH] Add negatives
+
+*/
 
 const fs = require("fs");
 
@@ -64,7 +68,7 @@ globalThis.userFunctions = {
         parameters: [],
         returnType: defines.types.u32
     },
-    "puts" : {
+    "puts": {
         name: 'puts',
         parameters: [],
         returnType: defines.types.u32
@@ -85,7 +89,7 @@ userVariables = {
 start()
 
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/math/compare.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/flow/loop.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi-c and newline, and filter out emtpy
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -95,6 +99,22 @@ function start() {
 // Compiles a single line
 function compileLine(line) {
     var requestMathFlag = false;
+
+    if (line[0] == "while") {
+        var lbl = actions.untypedLabel()
+        var exit = actions.untypedLabel()
+        requestBracketStack = {
+            type: "while",
+            data: {
+                name: lbl, // jump to beginning
+                properties: {
+                    exit // exit 
+                }
+            }
+        }
+        outputCode.text.push(`${lbl}:`)
+    }
+
     for (var wordNum = line.length - 1; wordNum >= 0; wordNum--) {
         var word = line[wordNum];
         var offsetWord = x => wordNum + x >= 0 ? line[wordNum + x] : null;
@@ -116,6 +136,11 @@ function compileLine(line) {
         if (parseInt(word) == word) // word = number
         {
             typeStack.push(defines.types.u32)
+            if(offsetWord(-1) == "-" && false) { //negative 
+                // replace false with statement tht figures if it is for math or not
+                // if it is for math, dont do anything
+                // ex. "0 - 100" vs "put_int(-100)""
+            }
         }
         else if (Object.keys(defines.types).includes(word)) // word = existing type
         {
@@ -205,11 +230,10 @@ function compileLine(line) {
             else { // new variables
                 var type = popTypeStack()
 
-                if(parseInt(offsetWord(-2)) == offsetWord(-2))
-                {
+                if (parseInt(offsetWord(-2)) == offsetWord(-2)) {
                     // TODO IF ARRAY
                 }
-                
+
                 actions.createVariable(offsetWord(-1), type, offsetWord(1))
             }
             break;
@@ -228,6 +252,8 @@ function compileLine(line) {
             } else if (requestBracketStack.type == "format") {
                 bracketStack.push(objCopy(requestBracketStack))
             } else if (requestBracketStack.type == "if") {
+                bracketStack.push(objCopy(requestBracketStack))
+            } else if (requestBracketStack.type == "while") {
                 bracketStack.push(objCopy(requestBracketStack))
             }
             requestBracketStack = 0;
@@ -258,13 +284,19 @@ function compileLine(line) {
                     `${properties.localExit}:`
                 )
                 var preview = previewNextLine()
-                if(!(preview[0] == "else" || preview[0] == "elif")) // fully escape block since we are done with all elif/else
+                if (!(preview[0] == "else" || preview[0] == "elif")) // fully escape block since we are done with all elif/else
                 {
                     outputCode.text.push(
                         `${data.data.name}:`
                     )
                     mostRecentIfStatement.pop()
                 }
+            }
+            if (data.type == "while") {
+                outputCode.text.push(
+                    `jmp ${data.data.name}`,
+                    `${data.data.properties.exit}:` // exit loop
+                )
             }
         }
         else if (word == "format") {
@@ -279,7 +311,7 @@ function compileLine(line) {
             }
             break;
         }
-        else if(word == "if") {
+        else if (word == "if") {
             var localExit = actions.untypedLabel() // jump out of this if, but not out of whole block
             outputCode.text.push(
                 `cmpb $1, ${offsetWord(2)}`, // checks if value = 1
@@ -294,9 +326,9 @@ function compileLine(line) {
                     }
                 }
             }
-            mostRecentIfStatement.push(objCopy(requestBracketStack)) // NOV 4: TODO CHANGE THIS TO ARR, DOES NOT SUPPORT NESTING!
+            mostRecentIfStatement.push(objCopy(requestBracketStack))
         }
-        else if(word == "elif") {
+        else if (word == "elif") {
             var localExit = actions.untypedLabel()// jump out of this if, but not out of whole block
             outputCode.text.push(
                 `cmpb $1, ${offsetWord(2)}`, // checks if value = 1
@@ -305,6 +337,18 @@ function compileLine(line) {
             requestBracketStack = mostRecentIfStatement.pop() // copy final termination
             mostRecentIfStatement.push(objCopy(requestBracketStack))
             requestBracketStack.data.properties.localExit = localExit // new local exit
+        }
+        else if (word == "else") {
+            var localExit = actions.untypedLabel()
+            requestBracketStack = mostRecentIfStatement.pop()
+            mostRecentIfStatement.push(objCopy(requestBracketStack))
+            requestBracketStack.data.properties.localExit = localExit
+        }
+        else if (word == "while") {
+            outputCode.text.push(
+                `cmpb $1, ${offsetWord(2)}`,
+                `jne ${requestBracketStack.data.properties.exit}` // jump out if not equal
+            )
         }
         else if (defines.mathOps.includes(word)) { // math
             if (!defines.mathOps.includes(offsetWord(-2))) { // make we are the first use
@@ -322,31 +366,27 @@ function compileLine(line) {
                 `swap_stack`
             )
         }
-        
-        
-        if(defines.compares.includes(offsetWord(1))) // comparison statement
+
+
+        if (defines.compares.includes(offsetWord(1))) // comparison statement
         {
             var tleft = popTypeStack()
             var tright = popTypeStack()
 
             var left = actions.formatIfConstantOrLiteral(word)
             var right = actions.formatIfConstantOrLiteral(offsetWord(2))
-            
-            if(tleft != tright)
-            {
-                throwW(`[COMPILER] comparing unequal types: `,tleft, " and ", tright)
+
+            if (tleft != tright) {
+                throwW(`[COMPILER] comparing unequal types: `, tleft, " and ", tright)
             }
 
-            if(tleft.pointer == true || right.pointer == true)
-            {
+            if (tleft.pointer == true || right.pointer == true) {
                 // todo compare contents of pointer
             }
-            else if(tleft.templatePtr != undefined || tright.templatePtr != undefined)
-            {
+            else if (tleft.templatePtr != undefined || tright.templatePtr != undefined) {
                 // todo compare structures
             }
-            else
-            {
+            else {
                 var fmtl = asm.formatRegister("a", tleft)
                 var fmtr = asm.formatRegister("b", tright)
                 var lbl = actions.requestTempLabel(defines.types.u8)
@@ -384,17 +424,16 @@ function compileLine(line) {
             wordNum++
             //throwE(line)
         }
-        
+
     }
     console.log("2) MODIFIED:", line.join(" "));
 }
 
-function previewNextLine()
-{
+function previewNextLine() {
     return parser.split(inputCode[globalInd + 1])
 }
 function compileMultiple(lines) {
-    inputCode.forEach((x,ind) => {
+    inputCode.forEach((x, ind) => {
         globalInd = ind
         x = parser.split(x)
         console.log("1) COMPILING:", x.join(" "))
