@@ -1,0 +1,41 @@
+Formats as classes vs structures
+- formats can act as both classes and structures
+- By default, they act as structures
+- To create an instance of a structure, you must declear the name of each entry
+
+--------------------------------------------------
+Car format 
+{
+    brand <- p8;
+    price <- u32;
+}
+create myCar <- Car<brand:"Honda",price:12000>;
+--------------------------------------------------
+
+- However, you can make them act like classes
+- To do so, add an "initializer" (constructor)
+- To use the initializer, create an instance by not specifying parameter names
+
+--------------------------------------------------
+Car initializer<u32 modelNumber> -> Car
+{
+    if(modelNumber == 0)
+    {
+        this.brand = "Honda";
+        this.price = 50000;
+    } 
+    elif (modelNumber == 1)
+    {
+        this.brand = "Kia";
+        this.price = 20000;
+    }
+    else 
+    {
+        this.brand = "Unknown";
+        this.price = 0;
+    }
+    return this
+}
+
+create myCar <- Car<1>;
+--------------------------------------------------

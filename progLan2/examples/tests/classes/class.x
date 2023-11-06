@@ -1,21 +1,16 @@
-
-String format
+Car format 
 {
-    buffer <- p8;
-    length <- method;
+    brand <- p8;
+    price <- u32;
 }
 
-String initializer<p8 contents> -> String
+Car initializer<u32 modelNumber>
 {
-    this.buffer <- contents;
-}
-
-String.length method<> -> u32
-{
-    return strlen(this);
+    this.brand <- "Honda";
+    return this;
 }
 
 entry function<> -> u32
 {
-    create myString <- String<"hello">;
+    create myCar <- Car<1>;
 }

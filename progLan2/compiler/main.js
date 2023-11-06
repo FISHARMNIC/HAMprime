@@ -1,8 +1,9 @@
 /* TODO: 
 - [HIGH]FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
 - [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
-- [HIGH] Add negatives
-
+- !!! [HIGH] Add negatives
+- [NEW FEATURE] Add format constructors
+- !!! LOCALS NOT WORKING ON COMPARISON? SEE CLASSES/CLASS ASM
 */
 
 const fs = require("fs");
@@ -35,14 +36,14 @@ globalThis.objCopy = function (x) {
 globalThis.globalInd = 0
 
 globalThis.throwE = function (x) {
-    console.log(`[ERROR] @ line ${globalInd}`, x)
+    console.log(`[ERROR] @ line ${globalInd}: `, ...arguments)
     console.trace()
     console.log("\n\n================== THIS WAS NOT A JS ERROR, THIS WAS THROWE ==================\n\n")
     process.exit(1)
 }
 
 globalThis.throwW = function (x) {
-    console.log("[WARNING]", ...arguments)
+    console.log(`[WARNING] @ line ${globalInd}: `, ...arguments)
 }
 globalThis.popTypeStack = function () {
     if (typeStack.length == 0) {
@@ -80,16 +81,19 @@ globalThis.userFunctions = {
     }
 };
 
+globalThis.userInits = {}
+
 userVariables = {
     __return_8__: defines.types.i8,
     __return_16__: defines.types.i16,
     __return_32__: defines.types.i32,
+    "this": defines.types.u32,
 }
 
 start()
 
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/flow/loop.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/class.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi-c and newline, and filter out emtpy
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -136,7 +140,7 @@ function compileLine(line) {
         if (parseInt(word) == word) // word = number
         {
             typeStack.push(defines.types.u32)
-            if(offsetWord(-1) == "-" && false) { //negative 
+            if (offsetWord(-1) == "-" && false) { //negative 
                 // replace false with statement tht figures if it is for math or not
                 // if it is for math, dont do anything
                 // ex. "0 - 100" vs "put_int(-100)""
@@ -158,26 +162,46 @@ function compileLine(line) {
                     if (word == "function") { // if function
                         actions.createFunction(offsetWord(-1), area)
                         continue;
-                    } else { // if template
+                    } else if (word == "initializer") // if constructor
+                    {
+                        actions.createInitializer(offsetWord(-1), area)
+                        
+                    } else { // if format
                         console.log("---------> ", word, area)
                         var lbl = actions.reserveFormat(word, area)
+                        
+                        if(lbl == -1) // initializer
+                        {
+                            line[wordNum] = formatReturn(defines.types.u32);
+                            
+                            line.splice(wordNum + 1, area.length + 2)
+                            typeStack.push(defines.types.u32)
+                            
+                            //wordNum -= 1
+                            //throwE("}}}}} NOW AT", line, wordNum)
+                        } else {
                         line[wordNum] = lbl
                         line.splice(wordNum + 1, area.length + 2)
                         console.log("====================>", word, defines.types[word])
                         typeStack.push(defines.types[word])
+                        }
                     }
                 }
             } else { // type specification, aka unexplicit casting
                 // todo: special types
                 line.splice(wordNum, 1)
+                //console.log("~!~~~!~!@!@!~@~~@!~@!~@~", word, defines.types)
                 typeStack.push(type) // push type
                 //console.log("o", line)
             }
         }
         else if (localsIncludes(word))  // word = local variable
         {
+
             line[wordNum] = asm.formatLocal(word)
+            //throwW(line)
             typeStack.push(userVariables[asm.formatLocal(word)])
+            word = line[wordNum]
         }
         else if (Object.keys(userVariables).includes(word)) // word = global variable
         {
@@ -196,6 +220,7 @@ function compileLine(line) {
         }
         else if (word == ".") {
             // todo: nested properties like bob.parent.child
+            //throwE("stop")
             var ret = actions.getFormatProperty(offsetWord(-1), offsetWord(1))
             line[wordNum - 1] = ret
             line.splice(wordNum, 2)
@@ -255,6 +280,24 @@ function compileLine(line) {
                 bracketStack.push(objCopy(requestBracketStack))
             } else if (requestBracketStack.type == "while") {
                 bracketStack.push(objCopy(requestBracketStack))
+            } else if (requestBracketStack.type == "initializer") {
+                bracketStack.push(objCopy(requestBracketStack))
+
+                userVariables["this"] = defines.types[data.name] // re-type "this"
+                inscope = userInits[data.name]
+                // NOTE, MODELNUMBER NOT BEING TAKEN AS LOCAL!!! SEE ASM
+                var label = actions.requestTempLabel(defines.types.u32)
+                var totSize = 0;
+
+                formats[data.name].forEach(x => { totSize += asm.typeToBits(x.type) })
+                outputCode.text.push( // allocate for "this"
+                    `pushl \$${totSize / 8}`,
+                    `swap_stack`,
+                    `call __allocate__`,
+                    `swap_stack`,
+                    `mov %eax, this`
+                )
+                //throwE(outputCode.text)
             }
             requestBracketStack = 0;
         }
@@ -370,12 +413,16 @@ function compileLine(line) {
 
         if (defines.compares.includes(offsetWord(1))) // comparison statement
         {
+
             var tleft = popTypeStack()
             var tright = popTypeStack()
+
+            //throwE(left,right, word, line)
 
             var left = actions.formatIfConstantOrLiteral(word)
             var right = actions.formatIfConstantOrLiteral(offsetWord(2))
 
+            
             if (tleft != tright) {
                 throwW(`[COMPILER] comparing unequal types: `, tleft, " and ", tright)
             }
@@ -450,10 +497,13 @@ function brackStackOffsetFromEnd(off = 1) {
 }
 
 function formatReturn(type) {
-    return `__return_${asm.typeToBits(type)}__`
+    if (type.templatePtr == undefined)
+        return `__return_${asm.typeToBits(type)}__`
+    return `__return_32__`
 }
 
 function localsIncludes(word) {
+    //console.log("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
     return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
 }
 

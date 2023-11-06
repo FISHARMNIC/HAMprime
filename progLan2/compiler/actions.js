@@ -49,10 +49,11 @@ module.exports = {
         return parseInt(x) == x ? '$' + x : x
     },
     getVariableOrParamIfExists: function (x) {
-        if(Object.keys(userVariables).includes(x))
-            return userVariables[x];
+        // IF BROKEN HERE SWAP THESE TWO UPSIDEDOWN
         if(Object.keys(userVariables).includes(asm.formatLocal(x)))
             return userVariables[asm.formatLocal(x)];
+        if(Object.keys(userVariables).includes(x))
+            return userVariables[x];
         return null
     },
     formatIfConstantOrLiteral: function (x) { // add dollar sign
@@ -131,7 +132,7 @@ module.exports = {
         var reg = asm.formatRegister('a', type)
         outbuffer.push(
             `mov ${_name}, %edx`,
-            `mov ${value.includes("_compLITERAL") ? "$" + value : value}, ${reg}`,
+            `mov ${value.includes("_compLITERAL") || (parseInt(value) == value)? "$" + value : value}, ${reg}`,
             `mov ${reg}, (%edx)`
         )
     },
@@ -168,6 +169,7 @@ module.exports = {
                 finalParams.push(fp)
             }
         })
+        //throwE(typeStack)
         var returnType = popTypeStack()
         userFunctions[_name] = {
             name: _name,
@@ -181,21 +183,68 @@ module.exports = {
             }
         }
     },
-    callFunction: function(_name, params) {
+    callFunction: function(_name, params, initializer = false) {
         params.forEach(x => {
             if(x != ",") {
                 outputCode.text.push(`pushl ${this.formatIfConstantOrLiteral(x)}`)
             }
         })
+
+        if(initializer && Object.keys(userInits).includes(_name))
+        {
+            outputCode.text.push(
+                `swap_stack`,
+                `call ${asm.formatInitializer(_name)}`,
+                `swap_stack`,
+            )
+            return userInits[_name].returnType
+        }
+
         outputCode.text.push(
             `swap_stack`,
             `call ${_name}`,
-            `swap_stack`)
-        if(Object.keys(userFunctions).includes(_name))
+            `swap_stack`,
+        )
+
+        if(!initializer && Object.keys(userFunctions).includes(_name))
         {
             return userFunctions[_name].returnType
         }
+
         throwW(`Implicit declaration of function ${_name} (or calling from pointer). Unknown return type, using [u32]`)
+        return defines.types.u32
+    },
+    createInitializer: function(_name, params) {
+        var finalParams = [];
+        outputCode.text.push(asm.formatInitializer(_name) + ":", `swap_stack`) 
+        params.forEach(x => {
+            if (x != ",") {
+                var fp = {
+                    name: x,
+                    type: popTypeStack()
+                }
+
+                var localName = asm.formatLocal(x, _name)
+                this.createVariable(localName, fp.type, 0, true);
+                outputCode.text.push(
+                    `pop %edx`,
+                    `mov ${asm.formatRegister('d', fp.type.special? defines.types.p32 : fp.type)}, ${localName}`
+                )
+                finalParams.push(fp)
+            }
+        })
+        var returnType = defines.types[_name]
+        userInits[_name] = {
+            name: _name,
+            parameters: finalParams,
+            returnType
+        }
+        requestBracketStack = {
+            type: "initializer",
+            data: {
+                name: _name
+            }
+        }
     },
     reserveFormat(fmt, args) {
         var passed = {}
@@ -205,53 +254,57 @@ module.exports = {
                     passed[args[i - 1]] = args[i + 1];
                 }
             })
-        } else {
-            // todo: un-labeled passing. ex. car<"bob",123> (not no use of ":")
-        }
-        console.log("   - PASSED", passed)
-        console.log(`   - USING ${fmt}`)//, formats[fmt] returns array of objects {name,type}
 
-        if (bracketStack.length == 0) { // static allocation at beginning of program
-            var label = this.untypedLabel();
-            outputCode.data.push(`${label}: # allocation for "${fmt}"`)
-            formats[fmt].forEach(x => {
-                outputCode.data.push(`${asm.typeToAsm(x.type)} # .${x.name}`)
-            })
-            // todo: move data into sturcture
-            throwE("TOP LEVEL FORMATS NOT IMPLEMENTED")
-        } else { //must be dynamically allocated in runtime
-            var label = this.requestTempLabel(defines.types.u32)
-            var totSize = 0;
-            formats[fmt].forEach(x => { totSize += asm.typeToBits(x.type) })
-            outputCode.text.push( // allocate size and load pointer
-                `pushl \$${totSize / 8}`,
-                `swap_stack`,
-                `call __allocate__`,
-                `mov %eax, ${label}`,
-                `swap_stack`,
-            )
-            var offset = 0;
-            formats[fmt].forEach(x => {
-                console.log("USINGGGGGG", x)
-                var reg = asm.formatRegister('d', x.type)
-                outputCode.text.push(`add $${offset / 8}, %eax`)
-                if (parseInt(passed[x.name]) == passed[x.name]) { //constant
-                    outputCode.text.push(
-                        `mov${asm.sizeToSuffix(x.type)} $${passed[x.name]}, (%eax)`
-                    )
-                } else {
-                    var use = passed[x.name]
-                    if (use.includes("_compLITERAL")) // make this use substring
-                        use = "$" + use
-                    outputCode.text.push(
-                        `mov ${use}, ${reg}`,
-                        `mov ${reg}, (%eax)`
-                    )
-                }
-                offset += parseInt(asm.typeToBits(x.type))
-            })
-            return label
+        
+            if (bracketStack.length == 0) { // static allocation at beginning of program
+                var label = this.untypedLabel();
+                outputCode.data.push(`${label}: # allocation for "${fmt}"`)
+                formats[fmt].forEach(x => {
+                    outputCode.data.push(`${asm.typeToAsm(x.type)} # .${x.name}`)
+                })
+                // todo: move data into sturcture
+                throwE("TOP LEVEL FORMATS NOT IMPLEMENTED")
+            } else { //must be dynamically allocated in runtime
+                var label = this.requestTempLabel(defines.types.u32)
+                var totSize = 0;
+                formats[fmt].forEach(x => { totSize += asm.typeToBits(x.type) })
+                outputCode.text.push( // allocate size and load pointer
+                    `pushl \$${totSize / 8}`,
+                    `swap_stack`,
+                    `call __allocate__`,
+                    `mov %eax, ${label}`,
+                    `swap_stack`,
+                )
+                var offset = 0;
+                formats[fmt].forEach(x => {
+                    console.log("USINGGGGGG", x)
+                    var reg = asm.formatRegister('d', x.type)
+                    outputCode.text.push(`add $${offset / 8}, %eax`)
+                    if (parseInt(passed[x.name]) == passed[x.name]) { //constant
+                        outputCode.text.push(
+                            `mov${asm.sizeToSuffix(x.type)} $${passed[x.name]}, (%eax)`
+                        )
+                    } else {
+                        var use = passed[x.name]
+                        if (use.includes("_compLITERAL")) // make this use substring
+                            use = "$" + use
+                        outputCode.text.push(
+                            `mov ${use}, ${reg}`,
+                            `mov ${reg}, (%eax)`
+                        )
+                    }
+                    offset += parseInt(asm.typeToBits(x.type))
+                })
+                return label
+            }
+        } else { // ============================================ Initializers ============================================
+            var resT = this.callFunction(fmt, args, true)
+            return -1
+            //throwE(res) // todo: un-labeled passing. ex. car<"bob",123> (not no use of ":")
         }
+        //console.log("   - PASSED", passed)
+        //console.log(`   - USING ${fmt}`)//, formats[fmt] returns array of objects {name,type}
+
     },
     getFormatProperty(name, property, returnAddr = false) {
         if(Object.keys(userVariables).includes(asm.formatLocal(name))) 

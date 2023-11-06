@@ -58,7 +58,10 @@ module.exports = {
     },
     getConditionalMoveName: function(x) {
         var out = {
-            
+
         }
+    },
+    formatInitializer: function(nameOfType) {
+        return nameOfType + "__INITIALIZER__"
     }
 }

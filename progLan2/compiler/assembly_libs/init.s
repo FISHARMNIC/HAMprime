@@ -9,6 +9,7 @@
     __return_8__: .byte 0
     __return_16__: .2byte 0
     __return_32__: .4byte 0
+    this: .4byte 0 
 .text
 
 .global init_stacks

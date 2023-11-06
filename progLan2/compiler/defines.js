@@ -61,6 +61,12 @@ var types = {
         special: true, 
         dblRef: false
     },
+    "initializer": {
+        size: 32,
+        pointer: true,
+        special: true, 
+        dblRef: false
+    },
     "___format_template___": {
         size: 0,
         pointer: false,

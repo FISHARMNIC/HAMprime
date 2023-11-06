@@ -6,11 +6,9 @@
 
 .data
 ######## user data section ########
-i: .4byte 0
-b: .4byte 0
-_compLITERAL4: .asciz "\n"
-__TEMP8_0__: .byte
-__TEMP8_1__: .byte
+_loc_Car_modelNumber: .4byte 0
+_compLITERAL0: .asciz "Honda"
+myCar: .4byte 0
 __TEMP32_0__: .4byte
 __TEMP32_1__: .4byte
 ###################################
@@ -30,61 +28,32 @@ main:
     //swap_stack
     call entry
     ret
+Car__INITIALIZER__:
+swap_stack
+pop %edx
+mov %edx, _loc_Car_modelNumber
+pushl $8
+swap_stack
+call __allocate__
+swap_stack
+mov %eax, this
+mov this, %edx
+add $0, %edx
+mov %edx, __TEMP32_1__
+######
+mov __TEMP32_1__, %edx
+mov $_compLITERAL0, %eax
+mov %eax, (%edx)
+######
+mov this, %edx
+mov %edx, __return_32__
 entry:
 swap_stack
-LABEL0:
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov i, %eax
-mov $100, %ebx
-cmp %ebx, %eax
-setl %cl
-mov %cl, __TEMP8_0__
-cmpb $1, __TEMP8_0__
-jne LABEL1
-mov $0, %edx
-mov %edx, b
-LABEL2:
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov b, %eax
-mov $20, %ebx
-cmp %ebx, %eax
-setl %cl
-mov %cl, __TEMP8_1__
-cmpb $1, __TEMP8_1__
-jne LABEL3
-pushl b
+pushl $1
 swap_stack
-call put_int
+call Car__INITIALIZER__
 swap_stack
-pusha
-xor %eax, %eax
-xor %ebx, %ebx
-xor %ecx, %ecx
-mov b, %eax
-add $1, %eax
-mov %eax, __TEMP32_0__
-popa
-mov __TEMP32_0__, %edx
-mov %edx, b
-jmp LABEL2
-LABEL3:
-pushl $_compLITERAL4
-swap_stack
-call puts
-swap_stack
-pusha
-xor %eax, %eax
-xor %ebx, %ebx
-xor %ecx, %ecx
-mov i, %eax
-add $1, %eax
-mov %eax, __TEMP32_1__
-popa
-mov __TEMP32_1__, %edx
-mov %edx, i
-jmp LABEL0
-LABEL1:
+mov $__return_32__, %edx
+mov %edx, myCar
 swap_stack
 ret
