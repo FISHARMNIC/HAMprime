@@ -89,8 +89,28 @@ entry function<> -> u32
     }
 }
 ```
+classes
+```
+Car format 
+{
+    brand <- p8;
+    price <- u32;
+}
 
+Car initializer<u32 modelNumber>
+{
+    this.brand <- "Honda";
+    return this;
+}
+
+entry function<> -> u32
+{
+    create myCar <- Car<1>;
+    printf_mini(myCar.brand, "%s\n");
+}
+```
 ## Changelog 2023
 First uploaded on Nov 4 with working variables, functions, formats, printing
 * Nov 4 - added if/elif
 * Nov 5 - added else and while
+* Nov 23 - added initializers!
