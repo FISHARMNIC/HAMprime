@@ -13,4 +13,5 @@ Car initializer<u32 modelNumber>
 entry function<> -> u32
 {
     create myCar <- Car<1>;
+    printf_mini(myCar.brand, "%s\n");
 }

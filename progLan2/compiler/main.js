@@ -3,7 +3,6 @@
 - [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
 - !!! [HIGH] Add negatives
 - [NEW FEATURE] Add format constructors
-- !!! LOCALS NOT WORKING ON COMPARISON? SEE CLASSES/CLASS ASM
 */
 
 const fs = require("fs");
@@ -95,7 +94,7 @@ start()
 function start() {
     const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/class.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
-    //split by semi-c and newline, and filter out emtpy
+    //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
     compileMultiple(inputCode)
 }
@@ -175,7 +174,7 @@ function compileLine(line) {
                             line[wordNum] = formatReturn(defines.types.u32);
                             
                             line.splice(wordNum + 1, area.length + 2)
-                            typeStack.push(defines.types.u32)
+                            typeStack.push(defines.types[word])
                             
                             //wordNum -= 1
                             //throwE("}}}}} NOW AT", line, wordNum)
@@ -265,6 +264,7 @@ function compileLine(line) {
         }
         else if (word == "return") {
             actions.twoStepLoadAuto(outputCode.text, formatReturn(inscope.returnType), offsetWord(1), popTypeStack(), inscope.returnType)
+            outputCode.text.push("swap_stack", "ret") // HERE IF BROKEN REMOVE
         }
         else if (word == "{") {
             if (requestBracketStack == 0) {
@@ -340,6 +340,9 @@ function compileLine(line) {
                     `jmp ${data.data.name}`,
                     `${data.data.properties.exit}:` // exit loop
                 )
+            }
+            if (data.type == "initializer") {
+                outputCode.text.push("swap_stack", "ret")
             }
         }
         else if (word == "format") {

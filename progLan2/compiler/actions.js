@@ -312,6 +312,7 @@ module.exports = {
         var fmt = userVariables[name].templatePtr
         var sum = 0;
         var index = 0;
+        //throwE(userVariables[name], name) // NOV 23 HERE
         fmt.every((x, i) => {
             if (x.name == property) {
                 index = i;

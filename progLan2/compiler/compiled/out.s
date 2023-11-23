@@ -9,8 +9,10 @@
 _loc_Car_modelNumber: .4byte 0
 _compLITERAL0: .asciz "Honda"
 myCar: .4byte 0
+_compLITERAL1: .asciz "%s\n"
 __TEMP32_0__: .4byte
 __TEMP32_1__: .4byte
+__TEMP32_2__: .4byte
 ###################################
 .text
 
@@ -47,13 +49,26 @@ mov %eax, (%edx)
 ######
 mov this, %edx
 mov %edx, __return_32__
+swap_stack
+ret
+swap_stack
+ret
 entry:
 swap_stack
 pushl $1
 swap_stack
 call Car__INITIALIZER__
 swap_stack
-mov $__return_32__, %edx
+mov __return_32__, %edx
 mov %edx, myCar
+mov myCar, %edx
+add $0, %edx
+mov (%edx), %eax
+mov %eax, __TEMP32_2__
+pushl __TEMP32_2__
+pushl $_compLITERAL1
+swap_stack
+call printf_mini
+swap_stack
 swap_stack
 ret

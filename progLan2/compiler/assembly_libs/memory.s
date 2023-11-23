@@ -1,7 +1,7 @@
 __allocate__:
     swap_stack
-    popl %eax # length
-    push %ebp
+    popl %ecx # length
+    push %ebp 
     mov $192, %eax    # mmap2
     xor %ebx, %ebx    # allocate, null means find your own spot
     mov $0x7, %edx    # protection: PROT_READ|PROT_WRITE|PROT_EXEC
