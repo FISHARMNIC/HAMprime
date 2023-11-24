@@ -246,6 +246,9 @@ module.exports = {
             }
         }
     },
+    createMethod: function(struct_name, method_name, params, returnType) {
+        throwE("WIP METHODS", struct_name, method_name, params, returnType)
+    },
     reserveFormat(fmt, args) {
         var passed = {}
         if (args.includes(":")) {
@@ -312,7 +315,7 @@ module.exports = {
         var fmt = userVariables[name].templatePtr
         var sum = 0;
         var index = 0;
-        //throwE(userVariables[name], name) // NOV 23 HERE
+        //throwE(userVariables[name], name) 
         fmt.every((x, i) => {
             if (x.name == property) {
                 index = i;

@@ -7,7 +7,10 @@ var types = require("./defines.js")
 
 var noExes = [
     "<-",
-    "->"
+    "->",
+    "/*",
+    "//",
+    "*/",
 ];
 noExes.push(...Object.keys(types.types),...types.compares) // laod all types into exceptions
 
@@ -127,6 +130,8 @@ user_init:
 ret
 
 main:
+    jmp PL__read_args__
+    PL__read_args_fin__:
     call init_stacks
     //swap_stack
     call entry

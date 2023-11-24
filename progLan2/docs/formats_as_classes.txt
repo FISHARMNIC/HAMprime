@@ -34,7 +34,6 @@ Car initializer<u32 modelNumber> -> Car
         this.brand = "Unknown";
         this.price = 0;
     }
-    return this
 }
 
 create myCar <- Car<1>;

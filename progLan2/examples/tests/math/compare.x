@@ -4,7 +4,7 @@ entry function<> -> u32
     {
         put_int(333);
     }
-    elif(444 == 555)
+    elif(444 <= 555)
     {
         put_int(777);
         if(222 :> 444)

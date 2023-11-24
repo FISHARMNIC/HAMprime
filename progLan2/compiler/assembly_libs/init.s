@@ -3,7 +3,8 @@
 .endm
 
 .data
-    cmd_args: .8byte 0 # to be implemented
+    argc: .4byte 0
+    argv: .4byte 0
     FRAME_SIZE = 256
     FRAME_DBLSIZE = FRAME_SIZE * 2
     __return_8__: .byte 0
@@ -29,3 +30,12 @@ init_stacks:
 
     call user_init
     ret
+
+.global PL__read_args__
+PL__read_args__:    // todo
+    // movl 4(%esp), %eax 
+    // mov %eax, argc
+    // addl $4, %esp
+    // movl 8(%esp), %eax
+    // mov %eax, argv
+    jmp PL__read_args_fin__

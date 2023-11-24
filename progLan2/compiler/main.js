@@ -1,8 +1,15 @@
 /* TODO: 
-- [HIGH]FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
+- [NEW] Add negatives
+- [NEW] Add floats
+- [NEW] Add arrays
+- [NEW] Add comments
+- [NEW] Add class methods
+
+- [HIGH] FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
+
 - [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
-- !!! [HIGH] Add negatives
-- [NEW FEATURE] Add format constructors
+- [LOW] Fix temp labels creating more than needed, use same system for HAM where each line the counter resets
+- [LOW] For IF statements, instead of checking if the value is 1, make sure greater than zero. This makes it so that you can have for example if(bob) where bob is any nonzero number
 */
 
 const fs = require("fs");
@@ -92,7 +99,7 @@ userVariables = {
 start()
 
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/class.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/shape.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -118,7 +125,12 @@ function compileLine(line) {
         outputCode.text.push(`${lbl}:`)
     }
 
-    for (var wordNum = line.length - 1; wordNum >= 0; wordNum--) {
+    var wordNum = line.length - 1
+    if(line.includes("//")) {
+        wordNum = line.indexOf("//") - 1
+    }
+    
+    for (; wordNum >= 0; wordNum--) {
         var word = line[wordNum];
         var offsetWord = x => wordNum + x >= 0 ? line[wordNum + x] : null;
         var replaceCurrentWith = x => { line[wordNum] = x; };
@@ -165,6 +177,9 @@ function compileLine(line) {
                     {
                         actions.createInitializer(offsetWord(-1), area)
                         
+                    } else if (word == "method")
+                    {
+                        actions.createMethod(offsetWord(-2,), offsetWord(-1), area, popTypeStack())
                     } else { // if format
                         console.log("---------> ", word, area)
                         var lbl = actions.reserveFormat(word, area)
@@ -206,10 +221,13 @@ function compileLine(line) {
         {
             typeStack.push(userVariables[word])
         }
-        else if (word == "(" && (localsIncludes(offsetWord(-1)) || Object.keys(userFunctions).includes(offsetWord(-1)) || Object.keys(userVariables).includes(offsetWord(-1)))) {
+        else if (word == "(" && (localsIncludes(offsetWord(-1)) || Object.keys(userFunctions).includes(offsetWord(-1)) || Object.keys(userVariables).includes(offsetWord(-1)))) { // function call
             console.log("----------------", offsetWord(-1))
             var fn = offsetWord(-1)
             var params = captureUntil(line, wordNum, ")")
+            if(offsetWord(-2) == ".") {
+                throwE("calling method")
+            }
             var lbl = actions.callFunction(fn, params)
             line[wordNum - 1] = formatReturn(userFunctions[fn].returnType);
             line.splice(wordNum, params.length + 2)
@@ -224,7 +242,7 @@ function compileLine(line) {
             line[wordNum - 1] = ret
             line.splice(wordNum, 2)
         }
-        else if (word == "<-") { // load something into variable
+        else if (word == "<-" || word == "=") { // load something into variable // HERE NOV 23 DELETE IF BROKEN
             var ident = brackStackOffsetFromEnd(1)
             if (ident.type == "format") { // if in format definition
                 var pname = offsetWord(-1)
@@ -303,7 +321,10 @@ function compileLine(line) {
         }
         else if (word == "}") {
             if (bracketStack.length == 0)
-                throwE("[COMPILER] Missing opening bracket")
+            {
+                //if(!line.includes("{"))
+                throwE("Unopened bracket")
+            }
             var data = bracketStack.pop();
             if (data.type == "function") {
                 var fnInfo = userFunctions[data.data.name]
@@ -342,7 +363,11 @@ function compileLine(line) {
                 )
             }
             if (data.type == "initializer") {
-                outputCode.text.push("swap_stack", "ret")
+                outputCode.text.push(
+                    "mov this, %edx",
+                    "mov %edx, __return_32__",
+                    "swap_stack", 
+                    "ret")
             }
         }
         else if (word == "format") {
