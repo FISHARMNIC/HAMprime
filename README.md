@@ -9,10 +9,12 @@ WIP new programming language that runs on Linux
 
 ## Currently working
 * Variables
-* Dynamic typing
+* Implicit typing
+* Casting
 * Formats (similar to C structs)
+* Format constructors
 * Functions
-* Nested If/elif statements
+* Nested if/elif statements
 * Math
 * Printing
 * While loops
