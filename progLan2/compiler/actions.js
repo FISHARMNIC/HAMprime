@@ -73,6 +73,10 @@ module.exports = {
     createVariable: function (_name, type, value, asParam = false) {
         //console.log("CREATING", _name, type, outputCode.data)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
+        if(Object.keys(userVariables).includes(_name) || localsIncludes(_name))
+        {
+            throwE("Variable already defined", _name)
+        }
         if(type.special && asParam) {
             outputCode.data.push(`${_name}: .4byte 0`)
             userVariables[_name] = objCopy(type)
@@ -183,7 +187,7 @@ module.exports = {
             }
         }
     },
-    callFunction: function(_name, params, initializer = false) {
+    callFunction: function(_name, params, initializer = false, isMethod = null) {
         params.forEach(x => {
             if(x != ",") {
                 outputCode.text.push(`pushl ${this.formatIfConstantOrLiteral(x)}`)
@@ -206,8 +210,14 @@ module.exports = {
             `swap_stack`,
         )
 
-        if(!initializer && Object.keys(userFunctions).includes(_name))
+        if(isMethod != null)
         {
+            return isMethod.returnType
+        }
+
+        if(!initializer && (Object.keys(userFunctions).includes(_name)))
+        {
+
             return userFunctions[_name].returnType
         }
 
@@ -215,24 +225,8 @@ module.exports = {
         return defines.types.u32
     },
     createInitializer: function(_name, params) {
-        var finalParams = [];
         outputCode.text.push(asm.formatInitializer(_name) + ":", `swap_stack`) 
-        params.forEach(x => {
-            if (x != ",") {
-                var fp = {
-                    name: x,
-                    type: popTypeStack()
-                }
-
-                var localName = asm.formatLocal(x, _name)
-                this.createVariable(localName, fp.type, 0, true);
-                outputCode.text.push(
-                    `pop %edx`,
-                    `mov ${asm.formatRegister('d', fp.type.special? defines.types.p32 : fp.type)}, ${localName}`
-                )
-                finalParams.push(fp)
-            }
-        })
+        var finalParams = asm.handleParams(_name, params.reverse())
         var returnType = defines.types[_name]
         userInits[_name] = {
             name: _name,
@@ -247,7 +241,22 @@ module.exports = {
         }
     },
     createMethod: function(struct_name, method_name, params, returnType) {
-        throwE("WIP METHODS", struct_name, method_name, params, returnType)
+        outputCode.text.push(asm.formatMethod(method_name, struct_name) + ":", `swap_stack`)
+        var finalParams = asm.handleParams(struct_name, params)
+        formatMethods[struct_name][method_name] = {
+            params, returnType
+        }
+        requestBracketStack = {
+            type: "method",
+            data: {
+                name: method_name,
+                struct_name
+            }
+        }
+        //defines[struct_name].methods.push()
+        //console.log()
+        //throwW("WIP METHODS", Object.values(formatMethods).map(x => Object.keys(x)).flat())
+        
     },
     reserveFormat(fmt, args) {
         var passed = {}
@@ -346,4 +355,9 @@ module.exports = {
 
         return (lbl)
     }
+}
+
+function localsIncludes(word) {
+    //console.log("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
+    return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
 }

@@ -8,9 +8,9 @@ entry function<> -> u32
         while(b <: 20)
         {
             put_int(b);
-            b <- b + 1;
+            b <- # b + 1;
         }
         puts("\n");
-        i <- i + 1;
+        i <- # i + 1;
     }
 }

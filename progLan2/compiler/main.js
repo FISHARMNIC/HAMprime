@@ -4,12 +4,21 @@
 - [NEW] Add arrays
 - [NEW] Add comments
 - [NEW] Add class methods
+- [NEW] Add polymorphism
+- [NEW] Add pointers
+- [NEW] Improve string handling QOL
 
+- [HIGH] Temporarily made math require "#" beforehand, fix this
+- [HIGH] Math will not work on something like "bob.length * jon" as it will see "length * jon"
 - [HIGH] FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
+- [HIGH] Add local variables by making setter and getter functions for accessing user variables that does it automatically
 
 - [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
 - [LOW] Fix temp labels creating more than needed, use same system for HAM where each line the counter resets
 - [LOW] For IF statements, instead of checking if the value is 1, make sure greater than zero. This makes it so that you can have for example if(bob) where bob is any nonzero number
+- [LOW] Possible error, make sure that u8 and u16 are being passed correctly to stack when calling function. Must be fully cast to u32
+- [LOW] Maybe change it so that instead having to realloc "this" for each method and init, just have one "this" var dedicated to each format?
+- [LOW] Should I be closing inscope upon "}"? Look at elif for function not setting inscope to null
 */
 
 const fs = require("fs");
@@ -27,8 +36,9 @@ globalThis.outputCode = { // object with out data
     }
 }
 globalThis.formats = {};
+globalThis.formatMethods = {};
 globalThis.userVariables = {};
-
+globalThis.oldThisType = [];
 globalThis.requestBracketStack = 0; // used for anything that needs a bracket on the next line
 globalThis.bracketStack = [];
 globalThis.typeStack = [];
@@ -56,6 +66,10 @@ globalThis.popTypeStack = function () {
         throwE("[COMPILER] Missing expected type")
     }
     return typeStack.pop()
+}
+
+globalThis.methodExists = function(n) {
+    return Object.values(formatMethods).map(x => Object.keys(x)).flat().includes(n)
 }
 
 globalThis.parser = require("./splitter.js"); // parser
@@ -221,23 +235,63 @@ function compileLine(line) {
         {
             typeStack.push(userVariables[word])
         }
-        else if (word == "(" && (localsIncludes(offsetWord(-1)) || Object.keys(userFunctions).includes(offsetWord(-1)) || Object.keys(userVariables).includes(offsetWord(-1)))) { // function call
+        else if (word == "(" && (localsIncludes(offsetWord(-1)) 
+        || Object.keys(userFunctions).includes(offsetWord(-1)) 
+        || Object.keys(userVariables).includes(offsetWord(-1))
+        || (offsetWord(-2) == "." && methodExists(offsetWord(-1)))
+        )) { // function call
             console.log("----------------", offsetWord(-1))
             var fn = offsetWord(-1)
+
             var params = captureUntil(line, wordNum, ")")
             if(offsetWord(-2) == ".") {
-                throwE("calling method")
-            }
+                var className = offsetWord(-3)
+                //throwE("calling method", methodExists(fn))
+                
+                oldThisType.push(objCopy(userVariables["this"]))
+                userVariables["this"] = userVariables[className] // re-type "this"
+
+                var label = actions.requestTempLabel(defines.types.u32)
+                
+                var methodInfo = formatMethods[userVariables[className].fmt_name][fn]
+                var formatInfo = formats[userVariables[className].fmt_name]
+                
+                // var totSize = 0;
+                // formatInfo.forEach(x => { totSize += asm.typeToBits(x.type) })
+                // outputCode.text.push( // allocate for "this"
+                //     `pushl this`,
+                //     `pushl \$${totSize / 8}`,
+                //     `swap_stack`,
+                //     `call __allocate__`,
+                //     `swap_stack`,
+                //     `mov %eax, this`
+                // )
+                outputCode.text.push(
+                    `mov ${className}, %eax`,
+                    `mov %eax, this`
+                )
+                
+                var lbl = actions.callFunction(asm.formatMethod(fn, methodInfo.name), params, false, methodInfo)
+                line[wordNum - 3] = formatReturn(methodInfo.returnType);
+                line.splice(wordNum - 2, params.length + 4)
+                typeStack.push(methodInfo.returnType)
+                wordNum -= 3
+
+               // outputCode.text.push(`popl this`)
+                //throwE(line)
+            } else {
+
+            
             var lbl = actions.callFunction(fn, params)
             line[wordNum - 1] = formatReturn(userFunctions[fn].returnType);
             line.splice(wordNum, params.length + 2)
             typeStack.push(userFunctions[fn].returnType)
             wordNum -= 1
             console.log("}}}}} NOW AT", line, wordNum)
+            }
         }
         else if (word == ".") {
             // todo: nested properties like bob.parent.child
-            //throwE("stop")
             var ret = actions.getFormatProperty(offsetWord(-1), offsetWord(1))
             line[wordNum - 1] = ret
             line.splice(wordNum, 2)
@@ -281,6 +335,7 @@ function compileLine(line) {
             break;
         }
         else if (word == "return") {
+            //throwE("bob", inscope)
             actions.twoStepLoadAuto(outputCode.text, formatReturn(inscope.returnType), offsetWord(1), popTypeStack(), inscope.returnType)
             outputCode.text.push("swap_stack", "ret") // HERE IF BROKEN REMOVE
         }
@@ -301,6 +356,7 @@ function compileLine(line) {
             } else if (requestBracketStack.type == "initializer") {
                 bracketStack.push(objCopy(requestBracketStack))
 
+                oldThisType.push(objCopy(userVariables["this"]))
                 userVariables["this"] = defines.types[data.name] // re-type "this"
                 inscope = userInits[data.name]
                 // NOTE, MODELNUMBER NOT BEING TAKEN AS LOCAL!!! SEE ASM
@@ -308,7 +364,9 @@ function compileLine(line) {
                 var totSize = 0;
 
                 formats[data.name].forEach(x => { totSize += asm.typeToBits(x.type) })
+                
                 outputCode.text.push( // allocate for "this"
+                    `pushl this`,
                     `pushl \$${totSize / 8}`,
                     `swap_stack`,
                     `call __allocate__`,
@@ -316,6 +374,11 @@ function compileLine(line) {
                     `mov %eax, this`
                 )
                 //throwE(outputCode.text)
+            } else if (requestBracketStack.type == "method") {
+                // TODO consolidate this into function so that we dont have repeated code for the initializer
+                bracketStack.push(objCopy(requestBracketStack))
+                inscope = formatMethods[data.struct_name][data.name]
+                inscope.name = data.struct_name
             }
             requestBracketStack = 0;
         }
@@ -330,18 +393,20 @@ function compileLine(line) {
                 var fnInfo = userFunctions[data.data.name]
                 outputCode.text.push("swap_stack", "ret")
             }
-            if (data.type == "format") {
+            else if (data.type == "format") {
                 var _name = data.data.name
                 var properties = data.data.properties
 
                 console.log("CLOSING FORMAT DEFINITION", properties)
                 formats[_name] = properties;
+                formatMethods[_name] = {};
                 var fmt = defines.types.___format_template___;
                 fmt.templatePtr = formats[_name];
+                fmt.fmt_name = _name
                 defines.types[_name] = fmt; // push fmt as new type
                 console.log("***********************>", _name, defines.types[_name])
             }
-            if (data.type == "if") {
+            else if (data.type == "if") {
                 var properties = data.data.properties
                 outputCode.text.push(
                     `jmp ${data.data.name}`, // final termination
@@ -356,18 +421,23 @@ function compileLine(line) {
                     mostRecentIfStatement.pop()
                 }
             }
-            if (data.type == "while") {
+            else if (data.type == "while") {
                 outputCode.text.push(
                     `jmp ${data.data.name}`,
                     `${data.data.properties.exit}:` // exit loop
                 )
             }
-            if (data.type == "initializer") {
+            else if (data.type == "initializer") {
                 outputCode.text.push(
                     "mov this, %edx",
                     "mov %edx, __return_32__",
+                    "popl this",
                     "swap_stack", 
                     "ret")
+                userVariables["This"] = oldThisType.pop()
+            }
+            else if (data.type == "method") {
+                outputCode.text.push("swap_stack", "ret")
             }
         }
         else if (word == "format") {
@@ -421,11 +491,14 @@ function compileLine(line) {
                 `jne ${requestBracketStack.data.properties.exit}` // jump out if not equal
             )
         }
-        else if (defines.mathOps.includes(word)) { // math
-            if (!defines.mathOps.includes(offsetWord(-2))) { // make we are the first use
-                requestMathFlag = true;
-                continue;
-            }
+        // else if (defines.mathOps.includes(word)) { // math
+        //     if (!defines.mathOps.includes(offsetWord(-2))) { // make we are the first use
+        //         requestMathFlag = true;
+        //         continue;
+        //     }
+        // }
+        else if (word == "#") { // delete after fixing mather
+            requestMathFlag = true;
         }
         else if (word == "INTERNALputstringTEST") {
             var offset = line.indexOf("NEXT")
@@ -481,8 +554,10 @@ function compileLine(line) {
 
         // --------
         if (requestMathFlag) {
-            //throwE(line)
-            console.log("LINE", line, wordNum)
+            line.splice(wordNum, 1); // deleter after fixing math 
+            //throwE(line, wordNum)
+            console.log("~|||||~~|~|~|~|~|~|~||~|~|~|~|~~~~~LINE", line, wordNum, asm.formatLocal(word), userVariables)
+            //console.log()
             var addr = wordNum;
             var build = [line[addr++]];
             var toggle = true;
@@ -529,6 +604,8 @@ function formatReturn(type) {
         return `__return_${asm.typeToBits(type)}__`
     return `__return_32__`
 }
+
+
 
 function localsIncludes(word) {
     //console.log("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)

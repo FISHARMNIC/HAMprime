@@ -61,7 +61,31 @@ module.exports = {
 
         }
     },
+    handleParams(_name, params) {
+        var finalParams = [];
+        params.forEach(x => {
+            if (x != ",") {
+                var fp = {
+                    name: x,
+                    type: popTypeStack()
+                }
+
+                var localName = this.formatLocal(x, _name)
+                actions.createVariable(localName, fp.type, 0, true);
+                outputCode.text.push(
+                    `pop %edx`,
+                    `mov ${this.formatRegister('d', fp.type.special? defines.types.p32 : fp.type)}, ${localName}`
+                )
+                finalParams.push(fp)
+            }
+        })
+        return finalParams
+    },
     formatInitializer: function(nameOfType) {
         return nameOfType + "__INITIALIZER__"
+    },
+    formatMethod: function(method_name, struct_name) {
+        return struct_name + "__METHOD_" + method_name + "__"
     }
 }
+
