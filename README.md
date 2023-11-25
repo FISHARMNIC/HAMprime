@@ -1,25 +1,26 @@
-# proglan2
-WIP new programming language that runs on Linux
+# Proglan2
+A 32bit compiled programming language that runs on Linux
 
-## Idea
-* Supports implicit typing
-* Mixture of low level and high leve
-  * Pointers, classes, untyped arrays etc
-* Fully compiled into 32bit assembly
+# What makes it unique?
+* "Simple but complex"
+  * incorporating the use of low-level memory access: Pointers and manual allocation (WIP)
+  * High-level operations like seamless string operations (WIP)
+* Combining the function-based ideolgy of C, and objects from Java
+  * See `formats`, and how they can act as both structures and classes
+* Fully compiled for speed
+* Integration with Linux functions, like printf and mmap
 
-## Currently working
+# Currently working
 * Variables
 * Implicit typing
-* Casting
 * Formats (similar to C structs)
-* Format constructors
 * Functions
-* Nested if/elif statements
+* Nested If/elif statements
 * Math
 * Printing
 * While loops
 
-## Examples
+# Examples
 ### All of the following code compiles and runs
 variables
 ```
@@ -111,7 +112,8 @@ entry function<> -> u32
     printf_mini(myCar.brand, "%s\n");
 }
 ```
-## Changelog 2023
+
+# Changelog 2023
 First uploaded on Nov 4 with working variables, functions, formats, printing
 * Nov 4 - added if/elif
 * Nov 5 - added else and while
