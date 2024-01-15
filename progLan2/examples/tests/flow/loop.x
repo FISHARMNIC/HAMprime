@@ -2,7 +2,7 @@ entry function<> -> u32
 {
     create i <- 0;
     create b <- 0;
-    while(i <: 100)
+    while(i <: 1000)
     {
         b <- 0;
         while(b <: 20)

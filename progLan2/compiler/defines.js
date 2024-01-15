@@ -19,6 +19,12 @@ var types = {
         special: false,
         dblRef: false,
     },
+    "dp32": {
+        size: 64,
+        pointer: true,
+        special: false,
+        dblRef: false,
+    },
     "u8": {
         size: 8,
         pointer: false,

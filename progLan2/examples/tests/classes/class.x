@@ -2,6 +2,7 @@ Car format
 {
     brand <- p8;
     price <- u32;
+    miles <- u32;
 }
 
 Car initializer<u32 modelNumber>

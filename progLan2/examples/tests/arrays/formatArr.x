@@ -5,3 +5,15 @@ Item format
 }
 
 create 200 shoppingList <- Item;
+
+
+
+
+
+
+
+
+myArr <[# 1 + 1]- 789;
+
+
+

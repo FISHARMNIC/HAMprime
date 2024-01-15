@@ -13,6 +13,10 @@
     this: .4byte 0 
 .text
 
+.global __return_8__
+.global __return_16__
+.global __return_32__
+
 .global init_stacks
 init_stacks:
     # todo: save command line args in "cmd_args"

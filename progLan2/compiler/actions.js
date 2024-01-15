@@ -50,16 +50,16 @@ module.exports = {
     },
     getVariableOrParamIfExists: function (x) {
         // IF BROKEN HERE SWAP THESE TWO UPSIDEDOWN
-        if(Object.keys(userVariables).includes(asm.formatLocal(x)))
+        if (Object.keys(userVariables).includes(asm.formatLocal(x)))
             return userVariables[asm.formatLocal(x)];
-        if(Object.keys(userVariables).includes(x))
+        if (Object.keys(userVariables).includes(x))
             return userVariables[x];
         return null
     },
     formatIfConstantOrLiteral: function (x) { // add dollar sign
         // var exists = this.getVariableOrParamIfExists(x)
         // || (exists != null && exists.special == true) 
-        return parseInt(x) == x || x.includes("_compLITERAL") ? "$" + x : x
+        return (parseInt(x) == x || String(x).includes("_compLITERAL")) ? "$" + x : x
     },
     castSimple: function (type, data) {
         var temp = this.requestTempLabel(type)
@@ -73,18 +73,17 @@ module.exports = {
     createVariable: function (_name, type, value, asParam = false) {
         //console.log("CREATING", _name, type, outputCode.data)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
-        if(Object.keys(userVariables).includes(_name) || localsIncludes(_name))
-        {
+        if (Object.keys(userVariables).includes(_name) || localsIncludes(_name)) {
             throwE("Variable already defined", _name)
         }
-        if(type.special && asParam) {
+        if (type.special && asParam) {
             outputCode.data.push(`${_name}: .4byte 0`)
             userVariables[_name] = objCopy(type)
         }
         else if (type.special) {
             // TODO: special
             outputCode.data.push(`${_name}: .4byte 0`)
-           // console.log("BOBBBBBBBB", value, _name, type.templatePtr.type.templatePtr)
+            // console.log("BOBBBBBBBB", value, _name, type.templatePtr.type.templatePtr)
             var obuff = bracketStack.length == 0 ? outputCode.init : outputCode.text;
             obuff.push(
                 `mov ${value}, %edx`,
@@ -94,17 +93,21 @@ module.exports = {
         } else {
             var out = `${_name}: ${asm.typeToAsm(type)} `
             userVariables[_name] = objCopy(type); // assign type to variable
-                if (parseInt(value) == value) // constant number
-                {
-                    out += value
+            if (parseInt(value) == value) // constant number
+            {
+                out += value
+            } else {
+                out += '0'
+                if (type.dblRef) {
+                    this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
                 } else {
-                    out += '0'
-                    if (type.dblRef) {
-                        this.twoStepLoadPtr("auto", _name, value)
-                    } else {
-                        this.twoStepLoadConst("auto", _name, value)
-                    }
+                    this.twoStepLoadConst("auto", _name, value, type)
                 }
+            }
+            if(type.size == 64)
+            {
+                userVariables[_name] = objCopy(defines.types.p32);
+            }
             outputCode.data.push(out)
         }
 
@@ -116,8 +119,9 @@ module.exports = {
         var register = asm.formatRegister('d', type)
         var dregister = asm.formatRegister('d', dest_type)
 
+        //throwE(type)
         if (outbuffer == "auto") {
-            if (bracketStack.length == 0) { // outside a function
+            if (bracketStack.length == 0 && type.size != 64) { // outside a function
                 outbuffer = outputCode.init
             } else {
                 outbuffer = outputCode.text
@@ -126,17 +130,24 @@ module.exports = {
         if (asm.typeToBits(dest_type) > asm.typeToBits(type)) {
             outbuffer.push(`xor %edx,%edx`)
         }
+
+        if(type.size == 64 && value[0] == "$") {
+            value = value.slice(1) // remove $ 
+        }
+        
         outbuffer.push(
             `mov ${value}, ${register}`,
             `mov ${dregister}, ${_name}`
         )
+
+        //throwE(outbuffer)
         // todo: if special type and moving pointer, free old space
     },
     twoStepLoadIntoAddr: function (outbuffer, _name, value, type) {
         var reg = asm.formatRegister('a', type)
         outbuffer.push(
             `mov ${_name}, %edx`,
-            `mov ${value.includes("_compLITERAL") || (parseInt(value) == value)? "$" + value : value}, ${reg}`,
+            `mov ${value.includes("_compLITERAL") || (parseInt(value) == value) ? "$" + value : value}, ${reg}`,
             `mov ${reg}, (%edx)`
         )
     },
@@ -168,7 +179,7 @@ module.exports = {
                 this.createVariable(localName, fp.type, 0, true);
                 outputCode.text.push(
                     `pop %edx`,
-                    `mov ${asm.formatRegister('d', fp.type.special? defines.types.p32 : fp.type)}, ${localName}`
+                    `mov ${asm.formatRegister('d', fp.type.special ? defines.types.p32 : fp.type)}, ${localName}`
                 )
                 finalParams.push(fp)
             }
@@ -187,15 +198,14 @@ module.exports = {
             }
         }
     },
-    callFunction: function(_name, params, initializer = false, isMethod = null) {
+    callFunction: function (_name, params, initializer = false, isMethod = null) {
         params.forEach(x => {
-            if(x != ",") {
+            if (x != ",") {
                 outputCode.text.push(`pushl ${this.formatIfConstantOrLiteral(x)}`)
             }
         })
 
-        if(initializer && Object.keys(userInits).includes(_name))
-        {
+        if (initializer && Object.keys(userInits).includes(_name)) {
             outputCode.text.push(
                 `swap_stack`,
                 `call ${asm.formatInitializer(_name)}`,
@@ -210,13 +220,11 @@ module.exports = {
             `swap_stack`,
         )
 
-        if(isMethod != null)
-        {
+        if (isMethod != null) {
             return isMethod.returnType
         }
 
-        if(!initializer && (Object.keys(userFunctions).includes(_name)))
-        {
+        if (!initializer && (Object.keys(userFunctions).includes(_name))) {
 
             return userFunctions[_name].returnType
         }
@@ -224,8 +232,8 @@ module.exports = {
         throwW(`Implicit declaration of function ${_name} (or calling from pointer). Unknown return type, using [u32]`)
         return defines.types.u32
     },
-    createInitializer: function(_name, params) {
-        outputCode.text.push(asm.formatInitializer(_name) + ":", `swap_stack`) 
+    createInitializer: function (_name, params) {
+        outputCode.text.push(asm.formatInitializer(_name) + ":", `swap_stack`)
         var finalParams = asm.handleParams(_name, params.reverse())
         var returnType = defines.types[_name]
         userInits[_name] = {
@@ -240,7 +248,7 @@ module.exports = {
             }
         }
     },
-    createMethod: function(struct_name, method_name, params, returnType) {
+    createMethod: function (struct_name, method_name, params, returnType) {
         outputCode.text.push(asm.formatMethod(method_name, struct_name) + ":", `swap_stack`)
         var finalParams = asm.handleParams(struct_name, params)
         formatMethods[struct_name][method_name] = {
@@ -256,7 +264,39 @@ module.exports = {
         //defines[struct_name].methods.push()
         //console.log()
         //throwW("WIP METHODS", Object.values(formatMethods).map(x => Object.keys(x)).flat())
-        
+
+    },
+    dynamicallyAllocate(sizeBytes, data = []) {
+        var label = this.requestTempLabel(defines.types.u32)
+        outputCode.text.push(
+            `pushl \$${sizeBytes}`,
+            `swap_stack`,
+            `call __allocate__`,
+            `mov %eax, ${label}`,
+            `swap_stack`,
+        )
+        var offset = 0;
+        if (data.length != 0) {
+            data.forEach(x => {
+                var reg = asm.formatRegister('d', x.type)
+                outputCode.text.push(`add $${offset / 8}, %eax`)
+                if (x.value == parseInt(x.value)) { //constant
+                    outputCode.text.push(
+                        `mov${asm.sizeToSuffix(x.type)} $${x.value}, (%eax)`
+                    )
+                } else {
+                    var use = x.value
+                    if (use.includes("_compLITERAL")) // make this use substring
+                        use = "$" + use
+                    outputCode.text.push(
+                        `mov ${use}, ${reg}`,
+                        `mov ${reg}, (%eax)`
+                    )
+                }
+                offset += parseInt(asm.typeToBits(x.type))
+            })
+        }
+        return label
     },
     reserveFormat(fmt, args) {
         var passed = {}
@@ -267,7 +307,7 @@ module.exports = {
                 }
             })
 
-        
+
             if (bracketStack.length == 0) { // static allocation at beginning of program
                 var label = this.untypedLabel();
                 outputCode.data.push(`${label}: # allocation for "${fmt}"`)
@@ -277,6 +317,7 @@ module.exports = {
                 // todo: move data into sturcture
                 throwE("TOP LEVEL FORMATS NOT IMPLEMENTED")
             } else { //must be dynamically allocated in runtime
+                // todo: rewrite to use "dynamicallyAllocate()"
                 var label = this.requestTempLabel(defines.types.u32)
                 var totSize = 0;
                 formats[fmt].forEach(x => { totSize += asm.typeToBits(x.type) })
@@ -319,7 +360,7 @@ module.exports = {
 
     },
     getFormatProperty(name, property, returnAddr = false) {
-        if(Object.keys(userVariables).includes(asm.formatLocal(name))) 
+        if (Object.keys(userVariables).includes(asm.formatLocal(name)))
             name = asm.formatLocal(name);
         var fmt = userVariables[name].templatePtr
         var sum = 0;
@@ -354,6 +395,55 @@ module.exports = {
         }
 
         return (lbl)
+    },
+    indexArr(base, size, ind, keepAddr = false) {
+        var lbl = this.requestTempLabel(defines.types.u32)
+        outputCode.push(
+            `push %eax; push %ebx`,
+            `mov ${size}, %eax`,
+            `mov ${ind}, %ebx`,
+            `mul %ebx`,
+        )
+
+        if (returnAddr) {
+            outputCode.push(
+                `mov ${ind}, %eax`,
+                `add %ebx, %eax`,
+                `mov %eax, ${lbl}`,
+                `pop %ebx; pop %eax`
+            )
+        } else {
+            outputCode.push(
+                `mov ${ind}, %eax`,
+                `add %ebx, %eax`,
+                `mov (%eax), ${lbl}`,
+                `pop %ebx; pop %eax`
+            )
+        }
+    },
+    allocateArrayWithContents(contents, static = true) {
+        if (static) {
+            var lbl = this.untypedLabel();
+            outputCode.data.push(`${lbl}:`)
+
+            contents.forEach(x => {
+                outputCode.data.push(`.4byte ${x.value}`)
+            })
+            typeStack.push(defines.types.p32);
+            return lbl
+        } else {
+            // todo: check if array is clamped to size
+            contents = contents.map(x => {
+                return {value: x.value, type: defines.types.u32}
+            })
+            typeStack.push(defines.types.dp32);
+            /* above returns a new pointer to allocated data. If we set our own var to this pointer,
+            *  we get a double pointer. Special type dp32 tells compiler to deference the pointer
+            *  when creating a new variable
+            */
+            return this.dynamicallyAllocate(4 * contents.length, contents);
+            // call malloc etc.
+        }
     }
 }
 

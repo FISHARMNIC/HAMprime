@@ -1,5 +1,4 @@
 /* TODO: 
-- [NEW] Add negatives
 - [NEW] Add floats
 - [NEW] Add arrays
 - [NEW] Add comments
@@ -7,9 +6,11 @@
 - [NEW] Add polymorphism
 - [NEW] Add pointers
 - [NEW] Improve string handling QOL
+- [NEW] Support nested formats
+- [NEW] Add declaring buffer just by giving length
 
-- [HIGH] Temporarily made math require "#" beforehand, fix this
-- [HIGH] Math will not work on something like "bob.length * jon" as it will see "length * jon"
+- [HIGH] fix /Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x
+- [HIGH] Temporarily made math require "#" beforehand, fix this. Originally, math will not work on something like "bob.length * jon" as it will see "length * jon"
 - [HIGH] FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
 - [HIGH] Add local variables by making setter and getter functions for accessing user variables that does it automatically
 
@@ -68,7 +69,7 @@ globalThis.popTypeStack = function () {
     return typeStack.pop()
 }
 
-globalThis.methodExists = function(n) {
+globalThis.methodExists = function (n) {
     return Object.values(formatMethods).map(x => Object.keys(x)).flat().includes(n)
 }
 
@@ -113,7 +114,7 @@ userVariables = {
 start()
 
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/shape.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -140,10 +141,10 @@ function compileLine(line) {
     }
 
     var wordNum = line.length - 1
-    if(line.includes("//")) {
+    if (line.includes("//")) {
         wordNum = line.indexOf("//") - 1
     }
-    
+
     for (; wordNum >= 0; wordNum--) {
         var word = line[wordNum];
         var offsetWord = x => wordNum + x >= 0 ? line[wordNum + x] : null;
@@ -162,14 +163,75 @@ function compileLine(line) {
             replaceCurrentWith(label);
             typeStack.push(defines.types.p8);
         }
-        if (parseInt(word) == word) // word = number
+        if (parseInt(line[wordNum]) == line[wordNum]) // word = number
         {
             typeStack.push(defines.types.u32)
-            if (offsetWord(-1) == "-" && false) { //negative 
-                // replace false with statement tht figures if it is for math or not
-                // if it is for math, dont do anything
-                // ex. "0 - 100" vs "put_int(-100)""
+            if (offsetWord(-1) == "-" && (parseInt(offsetWord(-2)) != offsetWord(-2)) && offsetWord(-2) != "]") { //negative  and theres not another number beforehand
+                line[wordNum] = "-" + line[wordNum]
+                line.splice(wordNum - 1, 1)
             }
+        }
+        else if (offsetWord(1) == "[") { // setting and loading arrays
+            if (word == "<") { //setting
+                var base = offsetWord(-1);
+                if(localsIncludes(base)) base = asm.formatLocal(base)
+                var baseType = userVariables[base];
+                var index = offsetWord(2);
+                var source = offsetWord(5);
+                var sourceType = popTypeStack();
+
+
+                if (parseInt(index) == index) { // index is constant
+                    outputCode.text.push(
+                        `# -- array load begin --`,
+                        `mov ${base}, %eax`,
+                        `mov ${actions.formatIfConstantOrLiteral(source)}, %ebx`,
+                        `mov %ebx, ${index * (baseType.size / 8)}(%eax)`,
+                        `# --- array load end ---`
+                    )
+                } else { // index is not constant
+                    outputCode.text.push(
+                        `# -- array load begin --`,
+                        `mov ${index}, %eax`,
+                        `mov ${actions.formatIfConstantOrLiteral(source)}, %ecx`,
+                        `mov $${baseType.size / 8}, %ebx`,
+                        `mul %ebx`,
+                        `mov ${base}, %ebx`,
+                        `mov %ecx, (%ebx, %eax, 1)`,
+                        `# --- array load end ---`
+                    )
+                }
+            } else if (offsetWord(3) == "]") { // reading
+                var base = line[wordNum];
+                if(localsIncludes(base)) base = asm.formatLocal(base)
+                var baseType = userVariables[base];
+                var index = offsetWord(2)
+                var lbl = actions.requestTempLabel(baseType)
+                if (parseInt(index) == index) {
+                    outputCode.text.push(
+                        `# -- array read begin --`,
+                        `mov ${base}, %eax`,
+                        `mov ${index * (baseType.size / 8)}(%eax), %ebx`,
+                        `mov ${asm.formatRegister("b", baseType)}, ${lbl}`,
+                        `# --- array read end ---`
+                    )
+                } else {
+                    outputCode.text.push(
+                        `# -- array read begin --`,
+                        `mov ${index}, %eax`,
+                        `mov $${baseType.size / 8}, %ebx`,
+                        `mul %ebx`,
+                        `mov ${base}, %ebx`,
+                        `mov (%ebx, %eax, 1), %eax`,
+                        `mov ${asm.formatRegister("a", baseType)}, ${lbl}`,
+                        `# --- array read end ---`
+                    )
+                }
+                line[wordNum] = lbl
+                line.splice(wordNum + 1, 3);
+                //throwE(line)
+            }
+
         }
         else if (Object.keys(defines.types).includes(word)) // word = existing type
         {
@@ -190,28 +252,27 @@ function compileLine(line) {
                     } else if (word == "initializer") // if constructor
                     {
                         actions.createInitializer(offsetWord(-1), area)
-                        
-                    } else if (word == "method")
-                    {
+
+                    } else if (word == "method") {
                         actions.createMethod(offsetWord(-2,), offsetWord(-1), area, popTypeStack())
                     } else { // if format
                         console.log("---------> ", word, area)
                         var lbl = actions.reserveFormat(word, area)
-                        
-                        if(lbl == -1) // initializer
+
+                        if (lbl == -1) // initializer
                         {
                             line[wordNum] = formatReturn(defines.types.u32);
-                            
+
                             line.splice(wordNum + 1, area.length + 2)
                             typeStack.push(defines.types[word])
-                            
+
                             //wordNum -= 1
                             //throwE("}}}}} NOW AT", line, wordNum)
                         } else {
-                        line[wordNum] = lbl
-                        line.splice(wordNum + 1, area.length + 2)
-                        console.log("====================>", word, defines.types[word])
-                        typeStack.push(defines.types[word])
+                            line[wordNum] = lbl
+                            line.splice(wordNum + 1, area.length + 2)
+                            console.log("====================>", word, defines.types[word])
+                            typeStack.push(defines.types[word])
                         }
                     }
                 }
@@ -235,27 +296,27 @@ function compileLine(line) {
         {
             typeStack.push(userVariables[word])
         }
-        else if (word == "(" && (localsIncludes(offsetWord(-1)) 
-        || Object.keys(userFunctions).includes(offsetWord(-1)) 
-        || Object.keys(userVariables).includes(offsetWord(-1))
-        || (offsetWord(-2) == "." && methodExists(offsetWord(-1)))
+        else if (word == "(" && (localsIncludes(offsetWord(-1))
+            || Object.keys(userFunctions).includes(offsetWord(-1))
+            || Object.keys(userVariables).includes(offsetWord(-1))
+            || (offsetWord(-2) == "." && methodExists(offsetWord(-1)))
         )) { // function call
             console.log("----------------", offsetWord(-1))
             var fn = offsetWord(-1)
 
             var params = captureUntil(line, wordNum, ")")
-            if(offsetWord(-2) == ".") {
+            if (offsetWord(-2) == ".") {
                 var className = offsetWord(-3)
                 //throwE("calling method", methodExists(fn))
-                
+
                 oldThisType.push(objCopy(userVariables["this"]))
                 userVariables["this"] = userVariables[className] // re-type "this"
 
                 var label = actions.requestTempLabel(defines.types.u32)
-                
+
                 var methodInfo = formatMethods[userVariables[className].fmt_name][fn]
                 var formatInfo = formats[userVariables[className].fmt_name]
-                
+
                 // var totSize = 0;
                 // formatInfo.forEach(x => { totSize += asm.typeToBits(x.type) })
                 // outputCode.text.push( // allocate for "this"
@@ -270,24 +331,24 @@ function compileLine(line) {
                     `mov ${className}, %eax`,
                     `mov %eax, this`
                 )
-                
+
                 var lbl = actions.callFunction(asm.formatMethod(fn, methodInfo.name), params, false, methodInfo)
                 line[wordNum - 3] = formatReturn(methodInfo.returnType);
                 line.splice(wordNum - 2, params.length + 4)
                 typeStack.push(methodInfo.returnType)
                 wordNum -= 3
 
-               // outputCode.text.push(`popl this`)
+                // outputCode.text.push(`popl this`)
                 //throwE(line)
             } else {
 
-            
-            var lbl = actions.callFunction(fn, params)
-            line[wordNum - 1] = formatReturn(userFunctions[fn].returnType);
-            line.splice(wordNum, params.length + 2)
-            typeStack.push(userFunctions[fn].returnType)
-            wordNum -= 1
-            console.log("}}}}} NOW AT", line, wordNum)
+
+                var lbl = actions.callFunction(fn, params)
+                line[wordNum - 1] = formatReturn(userFunctions[fn].returnType);
+                line.splice(wordNum, params.length + 2)
+                typeStack.push(userFunctions[fn].returnType)
+                wordNum -= 1
+                console.log("}}}}} NOW AT", line, wordNum)
             }
         }
         else if (word == ".") {
@@ -325,12 +386,13 @@ function compileLine(line) {
             }
             else { // new variables
                 var type = popTypeStack()
+                var nextWord = offsetWord(1);
 
-                if (parseInt(offsetWord(-2)) == offsetWord(-2)) {
-                    // TODO IF ARRAY
-                }
+                // if (parseInt(offsetWord(-2)) == offsetWord(-2)) {
+                //     // TODO IF ARRAY
+                // }
 
-                actions.createVariable(offsetWord(-1), type, offsetWord(1))
+                actions.createVariable(offsetWord(-1), type, nextWord)
             }
             break;
         }
@@ -341,7 +403,16 @@ function compileLine(line) {
         }
         else if (word == "{") {
             if (requestBracketStack == 0) {
-                throwE("[COMPILER] Uneeded opening bracket")
+                console.log("--Treating array initiation--")
+                var area = captureUntil(line, wordNum, "}").filter(x => x != ",");
+                var areaObj = [];
+                area.forEach(x => {
+                    areaObj.push({ value: x, type: popTypeStack() });
+                })
+                //console.log("--Gathered: ", areaObj, "--")
+                line[wordNum] = actions.allocateArrayWithContents(areaObj, bracketStack.length == 0)
+                line.splice(wordNum + 1, area.length * 2) // replace with label and remove 2xlength for commas
+                //throwE(line, bracketStack)
             }
             var data = requestBracketStack.data
             if (requestBracketStack.type == "function") {
@@ -364,7 +435,7 @@ function compileLine(line) {
                 var totSize = 0;
 
                 formats[data.name].forEach(x => { totSize += asm.typeToBits(x.type) })
-                
+
                 outputCode.text.push( // allocate for "this"
                     `pushl this`,
                     `pushl \$${totSize / 8}`,
@@ -383,11 +454,13 @@ function compileLine(line) {
             requestBracketStack = 0;
         }
         else if (word == "}") {
-            if (bracketStack.length == 0)
-            {
-                //if(!line.includes("{"))
+            if (line.slice(0, wordNum).includes("{")) {
+                continue
+            }
+            if (bracketStack.length == 0) {
                 throwE("Unopened bracket")
             }
+            //throwE(line, bracketStack)
             var data = bracketStack.pop();
             if (data.type == "function") {
                 var fnInfo = userFunctions[data.data.name]
@@ -432,7 +505,7 @@ function compileLine(line) {
                     "mov this, %edx",
                     "mov %edx, __return_32__",
                     "popl this",
-                    "swap_stack", 
+                    "swap_stack",
                     "ret")
                 userVariables["This"] = oldThisType.pop()
             }
@@ -523,7 +596,7 @@ function compileLine(line) {
             var left = actions.formatIfConstantOrLiteral(word)
             var right = actions.formatIfConstantOrLiteral(offsetWord(2))
 
-            
+
             if (tleft != tright) {
                 throwW(`[COMPILER] comparing unequal types: `, tleft, " and ", tright)
             }
@@ -556,7 +629,7 @@ function compileLine(line) {
         if (requestMathFlag) {
             line.splice(wordNum, 1); // deleter after fixing math 
             //throwE(line, wordNum)
-            console.log("~|||||~~|~|~|~|~|~|~||~|~|~|~|~~~~~LINE", line, wordNum, asm.formatLocal(word), userVariables)
+            //console.log("~|||||~~|~|~|~|~|~|~||~|~|~|~|~~~~~LINE", line, wordNum, asm.formatLocal(word), userVariables)
             //console.log()
             var addr = wordNum;
             var build = [line[addr++]];
