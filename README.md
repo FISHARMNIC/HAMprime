@@ -1,4 +1,4 @@
-# Proglan2
+# Proglan aka Ham2
 A 32bit compiled programming language that runs on Linux
 
 # What makes it unique?
