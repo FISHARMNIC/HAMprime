@@ -13,14 +13,15 @@ A 32bit compiled programming language that runs on Linux
 # Currently working
 * Variables
 * Implicit typing
-* Formats (similar to C structs)
+* Formats as structs
 * Formats as classes
 * Functions
 * Nested If/elif statements
 * Math
 * Printing
 * While loops
-* 
+* Arrays
+* File access
 
 # Examples
 ### All of the following code compiles and runs
