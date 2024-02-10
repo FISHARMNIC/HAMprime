@@ -24,6 +24,9 @@ A 32bit compiled programming language that runs on Linux
 * Arrays
 * File access
 
+# Docs [link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
+
+
 # Examples
 ### All of the following code compiles and runs
 variables
