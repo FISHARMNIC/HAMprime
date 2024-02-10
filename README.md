@@ -59,7 +59,7 @@ math
 ```
 sum function<u8 a, u16 b> -> u32
 {
-    return a + b;
+    return # a + b;
 }
 
 entry function<> -> u32
@@ -115,8 +115,15 @@ entry function<> -> u32
 }
 ```
 
-# Changelog 2023
+# Changelog
 First uploaded on Nov 4 with working variables, functions, formats, printing
-* Nov 4 - added if/elif
-* Nov 5 - added else and while
-* Nov 23 - added initializers!
+2023  
+* Nov 4 - Added if/elif
+* Nov 5 - Added else and while
+* Nov 6 - Added class initializers
+* Nov 23 - Finally fixed malloc issue, fixed "return" keyword
+* Nov 24 - Added methods
+* Nov 25 - Fixed methods and their locals, indefinitley changed math to be prefixed with "#"
+2024
+* Jan 15 - Added arrays
+* Feb 9 - Added fopen, fread, fwrite, and fclose
