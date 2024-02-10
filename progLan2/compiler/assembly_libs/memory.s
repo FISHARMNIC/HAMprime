@@ -1,3 +1,7 @@
+/*
+function allocate(u32 length) -> u32(%eax)
+- same idea as C malloc using mmap2
+*/
 __allocate__:
     swap_stack
     popl %ecx # length

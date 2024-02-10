@@ -1,0 +1,3 @@
+Rules for functions written in ASM:
+- Must begin with "swap stack" and end with "swap stack; ret"
+- Pop all parameters in reverse order as declaration

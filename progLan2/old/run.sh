@@ -1,3 +1,1 @@
-gcc test.s -o test -fno-asynchronous-unwind-tables -no-pie -m32
-chmod u+x ./test
-./test
+gcc test.c -S test.s -fno-asynchronous-unwind-tables -no-pie -m32 -O1

@@ -8,7 +8,9 @@
 - [NEW] Improve string handling QOL
 - [NEW] Support nested formats
 - [NEW] Add declaring buffer just by giving length
+- [NEW] Add proglan file inclusion
 
+- [HIGH] Casting numbers like u8<bob> won't work, for some reason using address of bob
 - [HIGH] fix /Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x
 - [HIGH] Temporarily made math require "#" beforehand, fix this. Originally, math will not work on something like "bob.length * jon" as it will see "length * jon"
 - [HIGH] FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
@@ -36,6 +38,7 @@ globalThis.outputCode = { // object with out data
             this.text.push(...arguments)
     }
 }
+globalThis.includedAssemblyFiles = [];
 globalThis.formats = {};
 globalThis.formatMethods = {};
 globalThis.userVariables = {};
@@ -99,10 +102,49 @@ globalThis.userFunctions = {
         name: 'printf_mini',
         parameters: [],
         returnType: defines.types.u32
+    },
+    "fopen": {
+        name: 'fopen',
+        parameters: [],
+        returnType: defines.types.u32
+    },
+    "fwrite": {
+        name: 'fopen',
+        parameters: [],
+        returnType: defines.types.u32
+    },
+    "fread": {
+        name: 'fopen',
+        parameters: [],
+        returnType: defines.types.u32
+    },
+    "fclose": {
+        name: 'fclose',
+        parameters: [],
+        returnType: defines.types.u32
     }
 };
 
 globalThis.userInits = {}
+globalThis.assemblyMacros = [
+    "O_CREAT_RW",
+    "O_ACCMODE",
+    "O_RDONLY",
+    "O_WRONLY",
+    "O_RDWR",
+    "O_CREAT",
+    "O_EXCL",
+    "O_NOCTTY",
+    "O_TRUNC",
+    "O_APPEND",
+    "O_NONBLOCK",
+    "O_NDELAY",
+    "O_SYNC",
+    "O_FSYNC",
+    "O_ASYNC",
+]
+globalThis.userMacros = {
+}
 
 userVariables = {
     __return_8__: defines.types.i8,
@@ -114,7 +156,7 @@ userVariables = {
 start()
 
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lib_files/read.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -151,6 +193,13 @@ function compileLine(line) {
         var replaceCurrentWith = x => { line[wordNum] = x; };
 
         //console.log("------", offsetWord(-1))
+        if (word == "DEFINED") {
+            userMacros[offsetWord(1)] = offsetWord(-1)
+        }
+        else if (word == "INCLUDED_ASM") {
+            includedAssemblyFiles.push(line.slice(0, line.length - 1).join(""))
+            break;
+        }
         if (word == ":") { //used for naming parameters
             wordNum--
             continue;
@@ -174,7 +223,7 @@ function compileLine(line) {
         else if (offsetWord(1) == "[") { // setting and loading arrays
             if (word == "<") { //setting
                 var base = offsetWord(-1);
-                if(localsIncludes(base)) base = asm.formatLocal(base)
+                if (localsIncludes(base)) base = asm.formatLocal(base)
                 var baseType = userVariables[base];
                 var index = offsetWord(2);
                 var source = offsetWord(5);
@@ -203,7 +252,7 @@ function compileLine(line) {
                 }
             } else if (offsetWord(3) == "]") { // reading
                 var base = line[wordNum];
-                if(localsIncludes(base)) base = asm.formatLocal(base)
+                if (localsIncludes(base)) base = asm.formatLocal(base)
                 var baseType = userVariables[base];
                 var index = offsetWord(2)
                 var lbl = actions.requestTempLabel(baseType)
@@ -233,7 +282,7 @@ function compileLine(line) {
             }
 
         }
-        else if (Object.keys(defines.types).includes(word)) // word = existing type
+        else if (Object.keys(defines.types).includes(word)) // word = existing type or method/function/init dec.
         {
             var type = defines.types[word];
             var lbl;
@@ -283,6 +332,14 @@ function compileLine(line) {
                 typeStack.push(type) // push type
                 //console.log("o", line)
             }
+        }
+        else if (assemblyMacros.includes(word)) // is an existing replacement macro taken from assembly
+        {
+            line[wordNum] = "$" + word
+        }
+        else if (Object.keys(userMacros).includes(word)) // is an existing replacement macro 
+        {
+            line[wordNum] = userMacros[word]
         }
         else if (localsIncludes(word))  // word = local variable
         {

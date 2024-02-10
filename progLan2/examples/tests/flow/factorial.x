@@ -8,12 +8,12 @@ factorial function<u32 number> -> u32
     }
     else
     {
-        sub <- # number - 1;
-        return # number * factorial(sub);
+        return # number * factorial(# number - 1);
     }
 }
 
 entry function<> -> u32
 {
-    printf_mini(factorial(1),"%i\n");
+    factorial(1);
+    //printf_mini(,"%i\n");
 }

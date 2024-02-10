@@ -1,0 +1,74 @@
+{
+  "scopeName": "source.proglan",
+  "fileTypes": [".x", "x"],
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#functionCalls"
+    },
+    {
+      "include": "#dataTypes"
+    },
+    {
+      "include": "#returns"
+    },
+    {
+      "include": "#formatKeyword"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "match": "\\b(function|create|format|method|initializer)\\b",
+          "name": "keyword"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "match": "\".*?\"",
+          "name": "string"
+        }
+      ]
+    },
+    "functionCalls": {
+      "patterns": [
+        {
+          "match": "\\b\\w+\\s*\\(",
+          "name": "support.function"
+        }
+      ]
+    },
+    "dataTypes": {
+      "patterns": [
+        {
+          "match": "\\b(u8|u16|u32|p8|p16|p32)\\b",
+          "name": "storage.type"
+        }
+      ]
+    },
+    "returns": {
+      "patterns": [
+        {
+          "match": "\\breturn\\b",
+          "name": "keyword"
+        }
+      ]
+    },
+    "formatKeyword": {
+      "patterns": [
+        {
+          "match": "\\b\\w+\\s+format\\b",
+          "name": "keyword.other"
+        }
+      ]
+    }
+  }
+}

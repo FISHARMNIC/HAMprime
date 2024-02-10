@@ -106,9 +106,16 @@ function parseFinalCode()
     return(
 `
 .1byte = .byte
+
+# crucial libs
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/init.s"
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/out.s"
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/memory.s"
+
+# additional libs
+`
+    + includedAssemblyFiles.map(x=> `.include "${x}"`).join("\n") + 
+`
 
 .data
 ######## user data section ########

@@ -1,0 +1,35 @@
+{
+  "name": "proglan",
+  "settings": [
+    {
+      "scope": "keyword",
+      "settings": {
+        "foreground": "#FFFFFF"
+      }
+    },
+    {
+      "scope": "string",
+      "settings": {
+        "foreground": "#FFFFFF"
+      }
+    },
+    {
+      "scope": "support.function",
+      "settings": {
+        "foreground": "#FFFFFF"
+      }
+    },
+    {
+      "scope": "storage.type",
+      "settings": {
+        "foreground": "#FF00FF"
+      }
+    },
+    {
+      "scope": "keyword.other",
+      "settings": {
+        "foreground": "#FFFFFF"
+      }
+    }
+  ]
+}

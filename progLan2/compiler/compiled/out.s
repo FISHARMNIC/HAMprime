@@ -1,17 +1,35 @@
 
 .1byte = .byte
+
+# crucial libs
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/init.s"
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/out.s"
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/memory.s"
 
+# additional libs
+.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/files.s"
+
 .data
 ######## user data section ########
-sub: .4byte 0
-_loc_factorial_number: .4byte 0
-_compLITERAL3: .asciz "%i\n"
+fd: .4byte 0
+LABEL0:
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+.4byte 0
+buffer: .4byte 0
+_compLITERAL1: .asciz "/Users/squijano/Documents/progLan2/examples/tests/lib_files/test_file.txt"
+_compLITERAL4: .asciz "Read from file: %s\n"
+_compLITERAL6: .asciz "Error in opening file\n"
 __TEMP8_0__: .byte
-__TEMP32_0__: .4byte
-__TEMP32_1__: .4byte
 ###################################
 .text
 
@@ -20,7 +38,8 @@ __TEMP32_1__: .4byte
 
 user_init:
 #### compiler initation section ###
-
+mov $LABEL0, %edx
+mov %edx, buffer
 ###################################
 ret
 
@@ -31,66 +50,47 @@ main:
     //swap_stack
     call entry
     ret
-factorial:
-swap_stack
-pop %edx
-mov %edx, _loc_factorial_number
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov _loc_factorial_number, %eax
-mov $0, %ebx
-cmp %ebx, %eax
-sete %cl
-mov %cl, __TEMP8_0__
-cmpb $1, __TEMP8_0__
-jne LABEL0
-mov $1, %edx
-mov %edx, __return_32__
-swap_stack
-ret
-jmp LABEL1
-LABEL0:
-pusha
-xor %eax, %eax
-xor %ebx, %ebx
-xor %ecx, %ecx
-mov _loc_factorial_number, %eax
-mov %eax, __TEMP32_0__
-popa
-mov __TEMP32_0__, %edx
-mov %edx, sub
-pushl sub
-swap_stack
-call factorial
-swap_stack
-pusha
-xor %eax, %eax
-xor %ebx, %ebx
-xor %ecx, %ecx
-mov _loc_factorial_number, %eax
-mov __return_32__, %ebx
-mul %ebx
-mov %eax, __TEMP32_1__
-popa
-mov __TEMP32_1__, %edx
-mov %edx, __return_32__
-swap_stack
-ret
-jmp LABEL1
-LABEL2:
-LABEL1:
-swap_stack
-ret
 entry:
 swap_stack
-pushl $1
+pushl $_compLITERAL1
+pushl $O_RDONLY
 swap_stack
-call factorial
+call fopen
 swap_stack
-pushl __return_32__
-pushl $_compLITERAL3
+mov __return_32__, %edx
+mov %edx, fd
+mov $0, %cl
+xor %eax, %eax; xor %ebx, %ebx
+mov fd, %eax
+mov $0, %ebx
+cmp %ebx, %eax
+setg %cl
+mov %cl, __TEMP8_0__
+cmpb $1, __TEMP8_0__
+jne LABEL2
+pushl fd
+pushl buffer
+pushl $12
+swap_stack
+call fread
+swap_stack
+pushl buffer
+pushl $_compLITERAL4
 swap_stack
 call printf_mini
 swap_stack
+pushl fd
+swap_stack
+call fclose
+swap_stack
+jmp LABEL3
+LABEL2:
+pushl $_compLITERAL6
+swap_stack
+call puts
+swap_stack
+jmp LABEL3
+LABEL5:
+LABEL3:
 swap_stack
 ret
