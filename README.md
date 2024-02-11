@@ -132,3 +132,4 @@ First uploaded on Nov 4 with working variables, functions, formats, printing
 2024
 * Jan 15 - Added arrays
 * Feb 9 - Added fopen, fread, fwrite, and fclose
+* Feb 10 - Added floats and fixed functions taking parameters in wrong order
