@@ -46,7 +46,7 @@ module.exports = {
         return lbl
     },
     fromatIfConstant: function (x) {
-        return parseInt(x) == x ? '$' + x : x
+        return parseFloat(x) == x ? '$' + x : x
     },
     getVariableOrParamIfExists: function (x) {
         // IF BROKEN HERE SWAP THESE TWO UPSIDEDOWN
@@ -59,7 +59,7 @@ module.exports = {
     formatIfConstantOrLiteral: function (x) { // add dollar sign
         // var exists = this.getVariableOrParamIfExists(x)
         // || (exists != null && exists.special == true) 
-        return (parseInt(x) == x || String(x).includes("_compLITERAL")) ? "$" + x : x
+        return (parseFloat(x) == x || String(x).includes("_compLITERAL")) ? "$" + x : x
     },
     castSimple: function (type, data) {
         var temp = this.requestTempLabel(type)
@@ -71,7 +71,7 @@ module.exports = {
         this.twoStepLoadAuto(outputCode.text, _name, value, type, userVariables[_name])
     },
     createVariable: function (_name, type, value, asParam = false) {
-        //console.log("CREATING", _name, type, outputCode.data)
+        //throwE("CREATING", _name, type, outputCode.data)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
         if (Object.keys(userVariables).includes(_name) || localsIncludes(_name)) {
             throwE("Variable already defined", _name)
@@ -93,7 +93,7 @@ module.exports = {
         } else {
             var out = `${_name}: ${asm.typeToAsm(type)} `
             userVariables[_name] = objCopy(type); // assign type to variable
-            if (parseInt(value) == value) // constant number
+            if (parseFloat(value) == value) // constant number
             {
                 out += value
             } else {
@@ -109,6 +109,7 @@ module.exports = {
                 userVariables[_name] = objCopy(defines.types.p32);
             }
             outputCode.data.push(out)
+            //throwE(outputCode.data)
         }
 
     },
@@ -147,7 +148,7 @@ module.exports = {
         var reg = asm.formatRegister('a', type)
         outbuffer.push(
             `mov ${_name}, %edx`,
-            `mov ${value.includes("_compLITERAL") || (parseInt(value) == value) ? "$" + value : value}, ${reg}`,
+            `mov ${value.includes("_compLITERAL") || (parseFloat(value) == value) ? "$" + value : value}, ${reg}`,
             `mov ${reg}, (%edx)`
         )
     },
@@ -156,7 +157,7 @@ module.exports = {
         this.twoStepLoadPtr(outbuffer, _name, value, type, dest_type)
     },
     twoStepLoadAuto: function (outbuffer, _name, value, type = null, dest_type = null) {
-        if (value == parseInt(value)) {
+        if (value == parseFloat(value)) {
             this.twoStepLoadConst(outbuffer, _name, value, type, dest_type);
         } else {
             this.twoStepLoadPtr(outbuffer, _name, value, type, dest_type);
@@ -167,6 +168,8 @@ module.exports = {
         var finalParams = [];
 
         outputCode.text.push(`${_name}:`, `swap_stack`)
+
+        var tempout = []
         params.forEach(x => {
             if (x != ",") {
                 //throwE(popTypeStack())
@@ -177,13 +180,14 @@ module.exports = {
 
                 var localName = asm.formatLocal(x, _name)
                 this.createVariable(localName, fp.type, 0, true);
-                outputCode.text.push(
-                    `pop %edx`,
-                    `mov ${asm.formatRegister('d', fp.type.special ? defines.types.p32 : fp.type)}, ${localName}`
+                tempout.push(
+                    `pop %edx; mov ${asm.formatRegister('d', fp.type.special ? defines.types.p32 : fp.type)}, ${localName}`
                 )
                 finalParams.push(fp)
             }
         })
+
+        outputCode.text.push(...tempout.reverse());
         //throwE(typeStack)
         var returnType = popTypeStack()
         userFunctions[_name] = {
@@ -199,10 +203,14 @@ module.exports = {
         }
     },
     callFunction: function (_name, params, initializer = false, isMethod = null) {
-        params.forEach(x => {
-            if (x != ",") {
-                outputCode.text.push(`pushl ${this.formatIfConstantOrLiteral(x)}`)
-            }
+        //throwE(userVariables)
+        params.filter(x=>x!=",").forEach((x,ind) => {
+            //throwE(params, ind)
+            // if(userFunctions[_name] != undefined && userFunctions[_name].parameters[ind] != undefined && userFunctions[_name].parameters[ind].type.float && (parseFloat(x) == x))
+            // {
+            //     x = jsF64ToF32IntegerBitsStr(x);
+            // }
+            outputCode.text.push(`pushl ${this.formatIfConstantOrLiteral(x)}`)
         })
 
         if (initializer && Object.keys(userInits).includes(_name)) {
@@ -280,7 +288,7 @@ module.exports = {
             data.forEach(x => {
                 var reg = asm.formatRegister('d', x.type)
                 outputCode.text.push(`add $${offset / 8}, %eax`)
-                if (x.value == parseInt(x.value)) { //constant
+                if (x.value == parseFloat(x.value)) { //constant
                     outputCode.text.push(
                         `mov${asm.sizeToSuffix(x.type)} $${x.value}, (%eax)`
                     )
@@ -293,7 +301,7 @@ module.exports = {
                         `mov ${reg}, (%eax)`
                     )
                 }
-                offset += parseInt(asm.typeToBits(x.type))
+                offset += parseFloat(asm.typeToBits(x.type))
             })
         }
         return label
@@ -333,7 +341,7 @@ module.exports = {
                     console.log("USINGGGGGG", x)
                     var reg = asm.formatRegister('d', x.type)
                     outputCode.text.push(`add $${offset / 8}, %eax`)
-                    if (parseInt(passed[x.name]) == passed[x.name]) { //constant
+                    if (parseFloat(passed[x.name]) == passed[x.name]) { //constant
                         outputCode.text.push(
                             `mov${asm.sizeToSuffix(x.type)} $${passed[x.name]}, (%eax)`
                         )
@@ -346,7 +354,7 @@ module.exports = {
                             `mov ${reg}, (%eax)`
                         )
                     }
-                    offset += parseInt(asm.typeToBits(x.type))
+                    offset += parseFloat(asm.typeToBits(x.type))
                 })
                 return label
             }

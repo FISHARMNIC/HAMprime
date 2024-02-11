@@ -16,6 +16,9 @@ module.exports = {
         return rt
     },
     typeToAsm: function (x) {
+        if (x.float) {
+            return `.4byte`
+        }
         if (x.special) {
             // TODO: special asm parsing
         } else {

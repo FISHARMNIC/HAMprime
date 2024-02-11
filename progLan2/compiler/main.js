@@ -1,15 +1,15 @@
 /* TODO: 
+- [NEW] add command line args
 - [NEW] Add floats
-- [NEW] Add arrays
-- [NEW] Add comments
-- [NEW] Add class methods
 - [NEW] Add polymorphism
 - [NEW] Add pointers
 - [NEW] Improve string handling QOL
 - [NEW] Support nested formats
 - [NEW] Add declaring buffer just by giving length
 - [NEW] Add proglan file inclusion
+- [NEW] Add function that copies a format, to create a new instance with same values
 
+- [HIGH] When creating a variable inside a function, next time around it won't be reset if it was init. as a const.
 - [HIGH] Casting numbers like u8<bob> won't work, for some reason using address of bob
 - [HIGH] fix /Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x
 - [HIGH] Temporarily made math require "#" beforehand, fix this. Originally, math will not work on something like "bob.length * jon" as it will see "length * jon"
@@ -66,10 +66,30 @@ globalThis.throwW = function (x) {
     console.log(`[WARNING] @ line ${globalInd}: `, ...arguments)
 }
 globalThis.popTypeStack = function () {
+    console.log("POPPPPPP")
     if (typeStack.length == 0) {
         throwE("[COMPILER] Missing expected type")
     }
     return typeStack.pop()
+}
+
+//taken from: https://stackoverflow.com/questions/65538406/convert-javascript-number-to-float-single-precision-ieee-754-and-receive-integ
+globalThis.jsF64ToF32IntegerBitsStr = function(double){
+    // float / f32 has 32 bit => 4 bytes
+    const BYTES = 4;
+    // Buffer is like a raw view into memory
+    const buffer = new ArrayBuffer(BYTES);
+    // Float32Array: interpret bytes in the memory as f32 (IEEE-754) bits
+    const float32Arr = new Float32Array(buffer);
+    // UInt32Array: interpret bytes in the memory as unsigned integer bits.
+    // Important that we use unsigned here, otherwise the MSB would be interpreted as sign
+    const uint32Array = new Uint32Array(buffer);
+    // will convert double to float during assignment
+    float32Arr[0] = double;
+    // now read the same memory as unsigned integer value
+    const integerValue = uint32Array[0];
+  
+    return integerValue;
 }
 
 globalThis.methodExists = function (n) {
@@ -81,26 +101,32 @@ globalThis.defines = require("./defines.js"); // variables like types
 globalThis.asm = require("./asmHelpers.js");
 globalThis.actions = require("./actions.js"); // important functions that translate into assembly
 globalThis.mathEngine = require("./mathEngine.js");
+globalThis.floatEngine = require("./floatEngine.js");
 
 globalThis.userFunctions = {
     "put_string": {
         name: 'put_string',
-        parameters: [],
+        parameters: [{name: "buffer", type: defines.types.p8}],
         returnType: defines.types.u32
     },
     "put_int": {
         name: 'put_int',
-        parameters: [],
+        parameters: [{name: "number", type: defines.types.u32}],
         returnType: defines.types.u32
     },
     "puts": {
         name: 'puts',
-        parameters: [],
+        parameters: [{name: "string", type: defines.types.p8}],
         returnType: defines.types.u32
     },
     "printf_mini": {
         name: 'printf_mini',
         parameters: [],
+        returnType: defines.types.u32
+    },
+    "put_float": {
+        name: 'put_float',
+        parameters: [{name: "number", type: defines.types.f32}],
         returnType: defines.types.u32
     },
     "fopen": {
@@ -150,13 +176,14 @@ userVariables = {
     __return_8__: defines.types.i8,
     __return_16__: defines.types.i16,
     __return_32__: defines.types.i32,
+    __return_flt__: defines.types.f32,
     "this": defines.types.u32,
 }
 
 start()
 
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lib_files/read.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/arrays/array.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -200,8 +227,19 @@ function compileLine(line) {
             includedAssemblyFiles.push(line.slice(0, line.length - 1).join(""))
             break;
         }
+        else if(word == "f") { //float
+            if(offsetWord(-2) == ".")
+            {
+                line[wordNum-3] = jsF64ToF32IntegerBitsStr(parseFloat(offsetWord(-3) + offsetWord(-2) + offsetWord(-1)))
+                line.splice(wordNum-2, 3);
+                wordNum-=3;
+                typeStack.push(defines.types.f32)
+                continue;
+            }
+            typeStack.push(defines.types.f32)
+        }
         if (word == ":") { //used for naming parameters
-            wordNum--
+            wordNum--;
             continue;
         }
         if (word[0] == '"' && word[word.length - 1] == '"') // string definition
@@ -212,10 +250,10 @@ function compileLine(line) {
             replaceCurrentWith(label);
             typeStack.push(defines.types.p8);
         }
-        if (parseInt(line[wordNum]) == line[wordNum]) // word = number
+        if (parseFloat(line[wordNum]) == line[wordNum]) // word = number
         {
             typeStack.push(defines.types.u32)
-            if (offsetWord(-1) == "-" && (parseInt(offsetWord(-2)) != offsetWord(-2)) && offsetWord(-2) != "]") { //negative  and theres not another number beforehand
+            if (offsetWord(-1) == "-" && (parseFloat(offsetWord(-2)) != offsetWord(-2)) && offsetWord(-2) != "]") { //negative  and theres not another number beforehand
                 line[wordNum] = "-" + line[wordNum]
                 line.splice(wordNum - 1, 1)
             }
@@ -230,7 +268,7 @@ function compileLine(line) {
                 var sourceType = popTypeStack();
 
 
-                if (parseInt(index) == index) { // index is constant
+                if (parseFloat(index) == index) { // index is constant
                     outputCode.text.push(
                         `# -- array load begin --`,
                         `mov ${base}, %eax`,
@@ -256,7 +294,7 @@ function compileLine(line) {
                 var baseType = userVariables[base];
                 var index = offsetWord(2)
                 var lbl = actions.requestTempLabel(baseType)
-                if (parseInt(index) == index) {
+                if (parseFloat(index) == index) { // const
                     outputCode.text.push(
                         `# -- array read begin --`,
                         `mov ${base}, %eax`,
@@ -278,6 +316,7 @@ function compileLine(line) {
                 }
                 line[wordNum] = lbl
                 line.splice(wordNum + 1, 3);
+                typeStack.push(defines.types.f32) // HERE FEB 10 DELETE IF BROKEN
                 //throwE(line)
             }
 
@@ -414,7 +453,7 @@ function compileLine(line) {
             line[wordNum - 1] = ret
             line.splice(wordNum, 2)
         }
-        else if (word == "<-" || word == "=") { // load something into variable // HERE NOV 23 DELETE IF BROKEN
+        else if (word == "<-") { // load something into variable
             var ident = brackStackOffsetFromEnd(1)
             if (ident.type == "format") { // if in format definition
                 var pname = offsetWord(-1)
@@ -445,7 +484,7 @@ function compileLine(line) {
                 var type = popTypeStack()
                 var nextWord = offsetWord(1);
 
-                // if (parseInt(offsetWord(-2)) == offsetWord(-2)) {
+                // if (parseFloat(offsetWord(-2)) == offsetWord(-2)) {
                 //     // TODO IF ARRAY
                 // }
 
@@ -454,7 +493,6 @@ function compileLine(line) {
             break;
         }
         else if (word == "return") {
-            //throwE("bob", inscope)
             actions.twoStepLoadAuto(outputCode.text, formatReturn(inscope.returnType), offsetWord(1), popTypeStack(), inscope.returnType)
             outputCode.text.push("swap_stack", "ret") // HERE IF BROKEN REMOVE
         }
@@ -629,6 +667,11 @@ function compileLine(line) {
         // }
         else if (word == "#") { // delete after fixing mather
             requestMathFlag = true;
+            requestMathType = "int";
+        }
+        else if (word == "#f") { // delete after fixing mather
+            requestMathFlag = true;
+            requestMathType = "float";
         }
         else if (word == "INTERNALputstringTEST") {
             var offset = line.indexOf("NEXT")
@@ -696,7 +739,7 @@ function compileLine(line) {
                 toggle = !toggle;
                 addr += 1;
             }
-            var ret = mathEngine(build)
+            var ret = requestMathType == "float" ? floatEngine(build) : mathEngine(build)
             line[wordNum] = ret
             line.splice(wordNum + 1, build.length - 1)
             //throwE(userFunctions)
@@ -730,6 +773,8 @@ function brackStackOffsetFromEnd(off = 1) {
 }
 
 function formatReturn(type) {
+    if (type.float)
+    return `__return_flt__`
     if (type.templatePtr == undefined)
         return `__return_${asm.typeToBits(type)}__`
     return `__return_32__`

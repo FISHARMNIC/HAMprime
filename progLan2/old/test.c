@@ -1,11 +1,10 @@
-// C Program to illustrate file opening
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdint.h>
 
-int main()
-{
-    FILE* fptr;
-    fptr = fopen("filename.txt", "r");
- 
-    return 0;
+void main()
+{    
+    float bob = 4.5;
+    float answer = bob + bob;
+    printf("%f", answer);
+    return;    
 }

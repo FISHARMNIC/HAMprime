@@ -1,5 +1,4 @@
 module.exports = function (arr) {
-    //throwE(typeStack)
     console.log("MATH ON", arr)
     var scanPos = 0;
     var current = arr[scanPos]

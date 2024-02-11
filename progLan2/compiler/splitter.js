@@ -11,6 +11,7 @@ var noExes = [
     "/*",
     "//",
     "*/",
+    "#f",
 ];
 noExes.push(...Object.keys(types.types),...types.compares) // laod all types into exceptions
 
@@ -118,6 +119,7 @@ function parseFinalCode()
 `
 
 .data
+__fpu_temp__: .4byte 0
 ######## user data section ########
 `
     + outputCode.data.join("\n") + 

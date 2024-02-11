@@ -7,29 +7,25 @@
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/memory.s"
 
 # additional libs
-.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/files.s"
+
 
 .data
+__fpu_temp__: .4byte 0
 ######## user data section ########
-fd: .4byte 0
-LABEL0:
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-.4byte 0
-buffer: .4byte 0
-_compLITERAL1: .asciz "/Users/squijano/Documents/progLan2/examples/tests/lib_files/test_file.txt"
-_compLITERAL4: .asciz "Read from file: %s\n"
-_compLITERAL6: .asciz "Error in opening file\n"
-__TEMP8_0__: .byte
+myArr: .4byte 0
+store: .4byte 0
+_compLITERAL0: .asciz "nico"
+name: .4byte 0
+_compLITERAL1: .asciz "%i\n"
+_compLITERAL2: .asciz "%s\n"
+_compLITERAL3: .asciz "%i\n"
+_compLITERAL4: .asciz "%i\n"
+__TEMP32_0__: .4byte
+__TEMP32_1__: .4byte
+__TEMP32_2__: .4byte
+__TEMP32_3__: .4byte
+__TEMP32_4__: .4byte
+__TEMP32_5__: .4byte
 ###################################
 .text
 
@@ -38,8 +34,8 @@ __TEMP8_0__: .byte
 
 user_init:
 #### compiler initation section ###
-mov $LABEL0, %edx
-mov %edx, buffer
+mov $_compLITERAL0, %edx
+mov %edx, name
 ###################################
 ret
 
@@ -52,45 +48,79 @@ main:
     ret
 entry:
 swap_stack
+pushl $16
+swap_stack
+call __allocate__
+mov %eax, __TEMP32_0__
+swap_stack
+add $0, %eax
+movl $123, (%eax)
+add $4, %eax
+mov name, %edx
+mov %edx, (%eax)
+add $8, %eax
+movl $456, (%eax)
+add $12, %eax
+movl $7777, (%eax)
+mov __TEMP32_0__, %edx
+mov %edx, myArr
+# -- array load begin --
+mov myArr, %eax
+mov $789, %ebx
+mov %ebx, 8(%eax)
+# --- array load end ---
+# -- array read begin --
+mov myArr, %eax
+mov 4(%eax), %ebx
+mov %ebx, __TEMP32_1__
+# --- array read end ---
+mov __TEMP32_1__, %edx
+mov %edx, store
+# -- array read begin --
+mov myArr, %eax
+mov 0(%eax), %ebx
+mov %ebx, __TEMP32_2__
+# --- array read end ---
+pushl __TEMP32_2__
 pushl $_compLITERAL1
-pushl $O_RDONLY
 swap_stack
-call fopen
+call printf_mini
 swap_stack
-mov __return_32__, %edx
-mov %edx, fd
-mov $0, %cl
-xor %eax, %eax; xor %ebx, %ebx
-mov fd, %eax
-mov $0, %ebx
-cmp %ebx, %eax
-setg %cl
-mov %cl, __TEMP8_0__
-cmpb $1, __TEMP8_0__
-jne LABEL2
-pushl fd
-pushl buffer
-pushl $12
+pushl store
+pushl $_compLITERAL2
 swap_stack
-call fread
+call printf_mini
 swap_stack
-pushl buffer
+# -- array read begin --
+mov myArr, %eax
+mov 8(%eax), %ebx
+mov %ebx, __TEMP32_3__
+# --- array read end ---
+pushl __TEMP32_3__
+pushl $_compLITERAL3
+swap_stack
+call printf_mini
+swap_stack
+pusha
+xor %eax, %eax
+xor %ebx, %ebx
+xor %ecx, %ecx
+mov $2, %eax
+add $1, %eax
+mov %eax, __TEMP32_4__
+popa
+# -- array read begin --
+mov __TEMP32_4__, %eax
+mov $4, %ebx
+mul %ebx
+mov myArr, %ebx
+mov (%ebx, %eax, 1), %eax
+mov %eax, __TEMP32_5__
+# --- array read end ---
+pushl __TEMP32_5__
 pushl $_compLITERAL4
 swap_stack
 call printf_mini
 swap_stack
-pushl fd
-swap_stack
-call fclose
-swap_stack
-jmp LABEL3
-LABEL2:
-pushl $_compLITERAL6
-swap_stack
-call puts
-swap_stack
-jmp LABEL3
-LABEL5:
-LABEL3:
 swap_stack
 ret

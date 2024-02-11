@@ -6,8 +6,8 @@ Square format
 
 Square initializer<u32 len, p8 col>
 {
-    this.length = len;
-    this.color = col;
+    this.length <- len;
+    this.color <- col;
 }
 
 Square volume method<u32 height> -> u32

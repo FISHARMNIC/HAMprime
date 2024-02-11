@@ -2,6 +2,7 @@
 PRINTF_INT32: .asciz "%i"
 PRINTF_STRING: .asciz "%s"
 PRINTF_NEWL: .asciz "\n"
+PRINTF_FLOAT: .asciz "%f"
 .text
 /*
 push <buffer>
@@ -46,3 +47,16 @@ put_int:
     add $8, %esp
     swap_stack
     ret
+
+put_float:
+    swap_stack
+    movss (%esp), %xmm0
+    cvtss2sd %xmm0, %xmm2
+    pop %eax
+    sub $16, %esp
+    movdqu %xmm2, (%esp)
+    push $PRINTF_FLOAT
+    call printf
+    swap_stack
+    ret
+    
