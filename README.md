@@ -53,14 +53,14 @@ entry function<> -> u32
 ```
 math
 ```
-sum function<u8 a, u16 b> -> u32
+sum function<f32 a, f32 b> -> f32
 {
-    return # a + b;
+    return #f a + b;
 }
 
 entry function<> -> u32
 {
-    put_int(sum(4,6));
+    put_float(sum(3.5f,6.5f));
 }
 ```
 if statements
