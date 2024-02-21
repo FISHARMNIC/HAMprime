@@ -30,16 +30,6 @@ A 32bit compiled programming language that runs on Linux
 
 # Examples
 ### All of the following code compiles and runs
-variables
-```
-create firstString <- p8<"word a">;
-create secondString <- p8 "word b";
-create thirdString <- "word c";
-
-create numberOne <- u8<123>;
-create numberTwo <- u16 123;
-create numberThree <- 123;
-```
 formats
 ```
 car format 
