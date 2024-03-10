@@ -4,7 +4,7 @@ A 32bit compiled programming language that runs on Linux
 
 # What makes it unique?
 * "Simple but complex"
-  * incorporating the use of low-level memory access: Pointers and manual allocation (WIP)
+  * incorporating the use of low-level memory access: Pointers and manual allocation
   * High-level operations like seamless string operations (WIP)
 * Combining the function-based ideolgy of C, and objects from Java
   * See `formats`, and how they can act as both structures and classes
@@ -24,6 +24,7 @@ A 32bit compiled programming language that runs on Linux
 * Arrays
 * File access
 * Floating point
+* Pointers
 
 # Docs [link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
 
