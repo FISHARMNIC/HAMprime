@@ -22,6 +22,7 @@ A 32bit compiled programming language that runs on Linux
 * Printing
 * While loops
 * Arrays
+* Lists (not the same as arrays)
 * File access
 * Floating point
 * Pointers
