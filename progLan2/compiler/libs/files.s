@@ -31,7 +31,7 @@ O_ASYNC    =   020000
 #for syscalls see: https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#x86-32_bit
 # or https://www.chromium.org/chromium-os/developer-library/reference/linux-constants/syscalls/
 
-.data 
+.text 
 /*
 function fopen(p8 path, u32 flags) -> (%eax file descriptor)
 */
@@ -39,8 +39,8 @@ fopen:
     pusha
     swap_stack
     mov $0x05, %eax  # syscall "open"
-    pop %ecx         # pathname
-    pop %ebx         # flags/perms
+    pop %ecx         # flags/perms
+    pop %ebx         # pathname
     mov $00600, %edx # perms for file (if creating a new one)
     int $0x80
     mov %eax, __return_32__

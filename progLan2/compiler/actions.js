@@ -10,9 +10,13 @@ module.exports = {
         "32": 0
     },
     currentLabels: {
+        "0": 0,
         "8": 0,
         "16": 0,
         "32": 0
+    },
+    objectCompare: function (a, b) {
+        return JSON.stringify(a) == JSON.stringify(b)
     },
     requestTempLabel: function (type) {
         var bits = asm.typeToBits(type)
@@ -25,6 +29,8 @@ module.exports = {
     },
     done_generateTempLabels: function () {
         // finish up later, too lazy now, supposed to use max
+        for (var i = 0; i < this.currentLabels["0"]; i++)
+            outputCode.data.push(`__TEMP0_${i}__: .4byte # for format deref`)
         for (var i = 0; i < this.currentLabels["8"]; i++)
             outputCode.data.push(`__TEMP8_${i}__: .byte`)
         for (var i = 0; i < this.currentLabels["16"]; i++)
@@ -68,15 +74,22 @@ module.exports = {
         return temp
     },
     loadVariable: function (_name, type, value) {
+        if (!this.objectCompare(userVariables[_name], type) && type.bits != undefined) {
+            throwE(`Type confliction. Variable ${_name} does not have type ${type}`)
+            // finish, dont let conversion from different int type. Only float<->u32
+            userVariables[_name] = type
+        }
         this.twoStepLoadAuto(outputCode.text, _name, value, type, userVariables[_name])
     },
     createVariable: function (_name, type, value, asParam = false) {
-        //throwE("CREATING", _name, type, outputCode.data)
+        //throwE("CREATING", _name, type)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
+
         if (Object.keys(userVariables).includes(_name) || localsIncludes(_name)) {
             throwE("Variable already defined", _name)
         }
         if (type.special && asParam) {
+
             outputCode.data.push(`${_name}: .4byte 0`)
             userVariables[_name] = objCopy(type)
         }
@@ -93,20 +106,27 @@ module.exports = {
         } else {
             var out = `${_name}: ${asm.typeToAsm(type)} `
             userVariables[_name] = objCopy(type); // assign type to variable
-            if (parseFloat(value) == value) // constant number
+            if (parseFloat(value) == value && inscope == 0) // constant number
             {
                 out += value
             } else {
                 out += '0'
+
                 if (type.dblRef) {
                     this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
                 } else {
                     this.twoStepLoadConst("auto", _name, value, type)
                 }
             }
-            if(type.size == 64)
-            {
+            if (type.size == 64) {
+
                 userVariables[_name] = objCopy(defines.types.p32);
+                if(lastArrInfo.isList) 
+                {
+                    this.createVariable(asm.formatListSizeVar(_name), defines.types.u32, lastArrInfo.size)
+                }
+
+                userListInitLengths[_name] = lastArrInfo.size;
             }
             outputCode.data.push(out)
             //throwE(outputCode.data)
@@ -128,17 +148,20 @@ module.exports = {
                 outbuffer = outputCode.text
             }
         }
+
+        //outbuffer.push("push %edx")
+
         if (asm.typeToBits(dest_type) > asm.typeToBits(type)) {
             outbuffer.push(`xor %edx,%edx`)
         }
 
-        if(type.size == 64 && value[0] == "$") {
+        if (type.size == 64 && value[0] == "$") {
             value = value.slice(1) // remove $ 
         }
-        
+
         outbuffer.push(
             `mov ${value}, ${register}`,
-            `mov ${dregister}, ${_name}`
+            `mov ${dregister}, ${_name}`,
         )
 
         //throwE(outbuffer)
@@ -149,7 +172,7 @@ module.exports = {
         outbuffer.push(
             `mov ${_name}, %edx`,
             `mov ${value.includes("_compLITERAL") || (parseFloat(value) == value) ? "$" + value : value}, ${reg}`,
-            `mov ${reg}, (%edx)`
+            `mov ${reg}, (%edx)`,
         )
     },
     twoStepLoadConst: function (outbuffer, _name, value, type = null, dest_type = null) {
@@ -204,7 +227,7 @@ module.exports = {
     },
     callFunction: function (_name, params, initializer = false, isMethod = null) {
         //throwE(userVariables)
-        params.filter(x=>x!=",").forEach((x,ind) => {
+        params.filter(x => x != ",").forEach((x, ind) => {
             //throwE(params, ind)
             // if(userFunctions[_name] != undefined && userFunctions[_name].parameters[ind] != undefined && userFunctions[_name].parameters[ind].type.float && (parseFloat(x) == x))
             // {
@@ -287,7 +310,6 @@ module.exports = {
         if (data.length != 0) {
             data.forEach(x => {
                 var reg = asm.formatRegister('d', x.type)
-                outputCode.text.push(`add $${offset / 8}, %eax`)
                 if (x.value == parseFloat(x.value)) { //constant
                     outputCode.text.push(
                         `mov${asm.sizeToSuffix(x.type)} $${x.value}, (%eax)`
@@ -301,6 +323,7 @@ module.exports = {
                         `mov ${reg}, (%eax)`
                     )
                 }
+                outputCode.text.push(`add $4, %eax`)
                 offset += parseFloat(asm.typeToBits(x.type))
             })
         }
@@ -384,6 +407,9 @@ module.exports = {
         })
         var lbl;
         var reg = asm.formatRegister("a", fmt[index].type)
+
+        outputCode.text.push("push %edx")
+
         if (returnAddr) {
             lbl = this.requestTempLabel(defines.types.u32)
             outputCode.text.push(
@@ -429,7 +455,7 @@ module.exports = {
             )
         }
     },
-    allocateArrayWithContents(contents, static = true) {
+    allocateArrayWithContents(contents, static = true, isList = false) {
         if (static) {
             var lbl = this.untypedLabel();
             outputCode.data.push(`${lbl}:`)
@@ -442,9 +468,10 @@ module.exports = {
         } else {
             // todo: check if array is clamped to size
             contents = contents.map(x => {
-                return {value: x.value, type: defines.types.u32}
+                return { value: x.value, type: defines.types.u32 }
             })
             typeStack.push(defines.types.dp32);
+            lastArrInfo = {size: contents.length, isList};
             /* above returns a new pointer to allocated data. If we set our own var to this pointer,
             *  we get a double pointer. Special type dp32 tells compiler to deference the pointer
             *  when creating a new variable
@@ -452,6 +479,50 @@ module.exports = {
             return this.dynamicallyAllocate(4 * contents.length, contents);
             // call malloc etc.
         }
+    },
+    derefPointer(address, type) {
+        var lbl = this.requestTempLabel(type)
+        var outputReg = asm.formatRegister("d", type)
+        outputCode.text.push(
+            `mov ${address}, %edx`,
+            `mov (%edx), ${outputReg}`,
+            `mov ${outputReg}, ${lbl}`
+        )
+        return lbl
+    },
+    listNewItem(list_name, list_type, new_item) {
+        var oldSize = asm.formatListSizeVar(list_name);
+        if (userListInitLengths[list_name] == 0) {
+            outputCode.text.push(
+                `pushl \$4`,
+                `swap_stack`,
+                `call __allocate__`,
+                `mov %eax, ${list_name}`,
+                `swap_stack`,
+            )
+            userListInitLengths = -1 // overwrite
+        } else {
+            outputCode.text.push(
+                `# -- array append begin --`,
+                `push ${list_name}`,
+                `push ${oldSize}`,
+                `swap_stack`,
+                `call realloc_rapid`,
+                `swap_stack`,
+                `mov __return_32__, %eax`,
+                `mov %eax, ${list_name}`,
+                `# --- array append end ---`
+            )
+        }
+        outputCode.text.push(
+            `# -- array load begin --`,
+            `mov ${list_name}, %eax`,
+            `mov ${actions.formatIfConstantOrLiteral(new_item)}, %ebx`,
+            `mov ${oldSize}, %ecx`,
+            `mov %ebx, (%eax, %ecx, 4)`,
+            `incl ${oldSize}`,
+            `# --- array load end ---`
+        )
     }
 }
 

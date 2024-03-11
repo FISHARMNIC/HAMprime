@@ -1,3 +1,21 @@
+/*
+|=======================|
+| Library used for HAM` |
+|=======================|
+
+* Handles setting up memory and cli args
+
+argc           | (u32) | c argc
+argv           | (u32) | c argv
+__return_8__   | (u8)  | stores return value for all u8 funcs
+__return_16__  | (u16) | stores return value for all u16 funcs
+__return_32__  | (u32) | stores return value for all u32 funcs
+__return_flt__ | (f32) | stores return value for all float funcs
+
+initstacks      procedure
+PL__read_args__ procedure
+*/
+
 .macro swap_stack
     xchg %esp, %ebp
 .endm
@@ -38,9 +56,8 @@ init_stacks:
 
 .global PL__read_args__
 PL__read_args__:    // todo
-    // movl 4(%esp), %eax 
-    // mov %eax, argc
-    // addl $4, %esp
-    // movl 8(%esp), %eax
-    // mov %eax, argv
+    movl 4(%esp), %eax 
+    mov %eax, argc
+    movl 8(%esp), %eax
+    mov %eax, argv
     jmp PL__read_args_fin__

@@ -1,4 +1,4 @@
-create scores <- {95.0f, 75.0f, 80.0f, 100.0f}; 
+create scores <- {-2.3f, -3.6f, 3.33f, 2.57f}; 
 
 average function<p32 arr, u32 size> -> f32
 {

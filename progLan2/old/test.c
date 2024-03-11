@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
-void main()
+void main(int argc, char **argv)
 {    
-    float bob = 4.5;
-    float answer = bob + bob;
-    printf("%f", answer);
-    return;    
+    printf("%p\n", &argc);
+    printf("%p : %p\n", argv, &argv);
+    return; 
 }

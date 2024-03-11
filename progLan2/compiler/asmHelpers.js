@@ -89,6 +89,9 @@ module.exports = {
     },
     formatMethod: function(method_name, struct_name) {
         return struct_name + "__METHOD_" + method_name + "__"
+    },
+    formatListSizeVar: function(_name) {
+        return _name + "_length"
     }
 }
 

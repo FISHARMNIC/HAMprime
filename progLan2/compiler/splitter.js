@@ -110,7 +110,7 @@ function parseFinalCode()
 
 # crucial libs
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/init.s"
-.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/out.s"
+.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/io.s"
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/memory.s"
 
 # additional libs

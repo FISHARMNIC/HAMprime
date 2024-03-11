@@ -17,3 +17,21 @@ __allocate__:
     // resut in eax
     swap_stack
     ret
+
+free:
+    pusha
+    swap_stack
+    pop %ecx # length
+    pop %ebx # address
+    mov $91, %eax # munmap
+    int $0x80     # free
+    swap_stack
+    popa
+    ret
+
+malloc:
+    pusha
+    call __allocate__ # already in call stack
+    mov %eax, __return_32__
+    popa
+    ret
