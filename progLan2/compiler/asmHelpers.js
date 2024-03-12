@@ -51,7 +51,7 @@ module.exports = {
         return `_loc_${scopeName}_${_name}`
     },
     typeToBits: function(x) {
-        if(x.pointer) return 32
+        if(x.pointer || x.templatePtr != undefined) return 32 // HERE IF BROKEN Mar 12 2023 delete || x.templatePre != undefined
         return parseInt(x.size)
     },
     guessType: function(x) {

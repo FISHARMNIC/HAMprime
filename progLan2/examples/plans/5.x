@@ -1,13 +1,5 @@
-String format 
-{
-    contents <- p8;
-    length <- p32;
-}
-
-String.length = strlen;
-
+create bob <- p8<123>;
 
 entry function<> -> u32
 {
-
 }

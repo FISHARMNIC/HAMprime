@@ -30,13 +30,13 @@ module.exports = {
     done_generateTempLabels: function () {
         // finish up later, too lazy now, supposed to use max
         for (var i = 0; i < this.currentLabels["0"]; i++)
-            outputCode.data.push(`__TEMP0_${i}__: .4byte # for format deref`)
+            outputCode.data.push(`__TEMP0_${i}__: .4byte 0 # for format deref`)
         for (var i = 0; i < this.currentLabels["8"]; i++)
-            outputCode.data.push(`__TEMP8_${i}__: .byte`)
+            outputCode.data.push(`__TEMP8_${i}__: .byte 0 `)
         for (var i = 0; i < this.currentLabels["16"]; i++)
-            outputCode.data.push(`__TEMP16_${i}__: .2byte`)
+            outputCode.data.push(`__TEMP16_${i}__: .2byte 0 `)
         for (var i = 0; i < this.currentLabels["32"]; i++)
-            outputCode.data.push(`__TEMP32_${i}__: .4byte`)
+            outputCode.data.push(`__TEMP32_${i}__: .4byte 0 `)
     },
     literalLabel: function () {
         return `_compLITERAL${genLabelCounter++}`;
@@ -300,6 +300,7 @@ module.exports = {
     dynamicallyAllocate(sizeBytes, data = []) {
         var label = this.requestTempLabel(defines.types.u32)
         outputCode.text.push(
+            `# ------ begin dynamic alloc ------`,
             `pushl \$${sizeBytes}`,
             `swap_stack`,
             `call __allocate__`,
@@ -327,6 +328,7 @@ module.exports = {
                 offset += parseFloat(asm.typeToBits(x.type))
             })
         }
+        outputCode.text.push(`# ------- end dynamic alloc -------`)
         return label
     },
     reserveFormat(fmt, args) {
@@ -337,7 +339,6 @@ module.exports = {
                     passed[args[i - 1]] = args[i + 1];
                 }
             })
-
 
             if (bracketStack.length == 0) { // static allocation at beginning of program
                 var label = this.untypedLabel();
@@ -353,6 +354,7 @@ module.exports = {
                 var totSize = 0;
                 formats[fmt].forEach(x => { totSize += asm.typeToBits(x.type) })
                 outputCode.text.push( // allocate size and load pointer
+                    `# ------ begin format alloc ------`,
                     `pushl \$${totSize / 8}`,
                     `swap_stack`,
                     `call __allocate__`,
@@ -361,7 +363,7 @@ module.exports = {
                 )
                 var offset = 0;
                 formats[fmt].forEach(x => {
-                    console.log("USINGGGGGG", x)
+                    console.log("*************USINGGGGGGGG *****", x)
                     var reg = asm.formatRegister('d', x.type)
                     outputCode.text.push(`add $${offset / 8}, %eax`)
                     if (parseFloat(passed[x.name]) == passed[x.name]) { //constant
@@ -379,6 +381,7 @@ module.exports = {
                     }
                     offset += parseFloat(asm.typeToBits(x.type))
                 })
+                outputCode.text.push(`# ------ end format alloc ------`,)
                 return label
             }
         } else { // ============================================ Initializers ============================================
@@ -408,22 +411,27 @@ module.exports = {
         var lbl;
         var reg = asm.formatRegister("a", fmt[index].type)
 
-        outputCode.text.push("push %edx")
+        //outputCode.text.push("push %edx")
 
         if (returnAddr) {
             lbl = this.requestTempLabel(defines.types.u32)
             outputCode.text.push(
+                `# ------ get format property ------`,
                 `mov ${name}, %edx`,
                 `add \$${sum}, %edx`,
                 `mov %edx, ${lbl}`,
+                `# ------ end get format prop ------`,
+
             )
         } else {
             lbl = this.requestTempLabel(fmt[index].type)
             outputCode.text.push(
+                `# ------ get format property ------`,
                 `mov ${name}, %edx`,
                 `add \$${sum}, %edx`,
                 `mov (%edx), ${reg}`,
-                `mov ${reg}, ${lbl}`
+                `mov ${reg}, ${lbl}`,
+                `# ------ end get format prop ------`,
             )
             typeStack.push(fmt[index].type)
         }

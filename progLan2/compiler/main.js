@@ -10,11 +10,15 @@
 - [NEW] Add float casting and vice versa
 - [NEW] Switch class intiators to be called with paren. instead: Car(1,2,3) vs Car<1,2,3>
 - [NEW] Add untyped params
+- [NEW] Add variable freeing (for formats, arrays, and lists)
+- [NEW] Add multi-dim arrays. Setting is done with commas: 2dArr <[# x+1,# y+1]- other2dArr[# x-1,# y-1];
+- [NEW] Add direct parameter from register or return in register, like bob function<eax p1> -> ebx
 
+- [HIGH] Allow top level (static allocation) of lists (not arrays)
 - [HIGH] change math engine to use just a regular label like templabel
 - [HIGH] Fix argv
 - [HIGH] Floats cant be compared, since they are stored as IEEE
-- [HIGH] Casting numbers like u8<bob> won't work, for some reason using address of bob
+- [HIGH] FIXED?? Casting numbers like u8<bob> won't work, for some reason using address of bob
 - [HIGH] fix /Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x
 - [HIGH] Temporarily made math require "#" beforehand, fix this. Originally, math will not work on something like "bob.length * jon" as it will see "length * jon"
 - [HIGH] FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
@@ -200,8 +204,8 @@ globalThis.methodExists = function (n) {
 start()
 
 function start() {
-    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lib_files/read.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lists/list.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/nest.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lists/list.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -633,8 +637,8 @@ function compileLine(line) {
                 var _name = data.data.name
                 var properties = data.data.properties
 
-                console.log("CLOSING FORMAT DEFINITION", properties)
-                formats[_name] = properties;
+                console.log("========CLOSING FORMAT DEFINITION========", properties.map(x => x.type.templatePtr))
+                formats[_name] = objCopy(properties);
                 formatMethods[_name] = {};
                 var fmt = defines.types.___format_template___;
                 fmt.templatePtr = formats[_name];
