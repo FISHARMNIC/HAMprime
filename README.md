@@ -127,3 +127,6 @@ First uploaded on Nov 4 with working variables, functions, formats, printing
 * Jan 15 - Added arrays
 * Feb 9 - Added fopen, fread, fwrite, and fclose
 * Feb 10 - Added floats and fixed functions taking parameters in wrong order
+* March 8? - Added pointers and dereferencing
+* March 9 - Added lists
+* March 10 - Fixed nested formats
