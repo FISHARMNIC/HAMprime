@@ -81,6 +81,25 @@ module.exports = {
         }
         this.twoStepLoadAuto(outputCode.text, _name, value, type, userVariables[_name])
     },
+    createStackVariable: function(_name, type, value)
+    {
+        outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
+        userVariables[_name] = objCopy(type)
+        var reg = asm.formatRegister("a", type)
+        outputCode.text.push(
+            `mov ${this.formatIfConstantOrLiteral(value)}, ${reg}`,
+            `pushl %eax`
+        )
+        currentStackOffset += asm.typeToBits(type) / 8
+        variablesOnStack[_name] = currentStackOffset
+    },
+    readStackVariable: function(_name) {
+        var reg = asm.formatRegister("d", userVariables[_name])
+        outputCode.text.push(
+                `mov ${variablesOnStack[_name]}(%esp), %edx`,
+                `mov ${reg}, ${_name}`
+        )
+    },
     createVariable: function (_name, type, value, asParam = false) {
         //throwE("CREATING", _name, type)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
@@ -169,6 +188,7 @@ module.exports = {
     },
     twoStepLoadIntoAddr: function (outbuffer, _name, value, type) {
         var reg = asm.formatRegister('a', type)
+        value = String(value)
         outbuffer.push(
             `mov ${_name}, %edx`,
             `mov ${value.includes("_compLITERAL") || (parseFloat(value) == value) ? "$" + value : value}, ${reg}`,
@@ -195,7 +215,6 @@ module.exports = {
         var tempout = []
         params.forEach(x => {
             if (x != ",") {
-                //throwE(popTypeStack())
                 var fp = {
                     name: x,
                     type: popTypeStack()
@@ -365,7 +384,7 @@ module.exports = {
                 formats[fmt].forEach(x => {
                     console.log("*************USINGGGGGGGG *****", x)
                     var reg = asm.formatRegister('d', x.type)
-                    outputCode.text.push(`add $${offset / 8}, %eax`)
+                    outputCode.text.push(`add \$${offset / 8}, %eax`)
                     if (parseFloat(passed[x.name]) == passed[x.name]) { //constant
                         outputCode.text.push(
                             `mov${asm.sizeToSuffix(x.type)} $${passed[x.name]}, (%eax)`
@@ -393,9 +412,97 @@ module.exports = {
         //console.log(`   - USING ${fmt}`)//, formats[fmt] returns array of objects {name,type}
 
     },
-    getFormatProperty(name, property, returnAddr = false) {
-        if (Object.keys(userVariables).includes(asm.formatLocal(name)))
+    getFormatPropertyNew(name, restOfLine = [], returnAddr = false) {
+        if (localsIncludes(name))
+        {
             name = asm.formatLocal(name);
+        }
+        
+        var restIndex = -1;
+        //throwE(restOfLine)
+        if(restOfLine[0] == ".")
+        {
+      
+            restIndex = 0;
+            var flipFlop = false;
+            // bob . bob . bob
+            while((!flipFlop && restOfLine[restIndex] == ".") || flipFlop)
+            {
+                flipFlop = !flipFlop;
+                restIndex++;
+            }
+            restOfLine = restOfLine.slice(0,restIndex).filter(x=>x!=".");
+            var propertyChain = [];
+            var host = userVariables[name]
+            
+            //throwE(name, restOfLine, userVariables[name])
+            // get each chains offset and type
+            restOfLine.forEach(x => {
+                var out = searchFormatForProperty(host,x)
+                propertyChain.push(out)
+                host = out.value? out.value.type : 0
+            })
+            var lastItem = propertyChain[propertyChain.length - 1]
+            var lbl = returnAddr? this.requestTempLabel(defines.types.u32) : this.requestTempLabel(lastItem.value.type)
+            
+            outputCode.text.push(
+                `# --- beginning property ${returnAddr? "address" : "value"} read ---`,
+                `mov ${name}, %edx`
+            )
+            if(propertyChain.length == 1)
+            {
+                outputCode.text.push(
+                    `add \$${propertyChain[0].sum}, %edx` //
+                )
+                if(returnAddr)
+                {
+                    outputCode.text.push(
+                        `mov %edx, ${lbl}`,
+                    )
+                } else {
+                    outputCode.text.push(
+                        `mov (%edx), %eax`,
+                        `mov %eax, ${lbl}`,
+                    )
+                }
+                return {lbl,restOfLine}
+            }
+            propertyChain.slice(0,propertyChain.length - 1).forEach(x => {
+                outputCode.text.push(
+                    `add \$${x.sum}, %edx`,
+                    `mov (%edx), %eax`,
+                    `mov %eax, %edx`
+                )
+            })
+
+            if(returnAddr)
+            {
+                outputCode.text.push(
+                    `add \$${lastItem.sum}, %edx`,
+                    `mov %edx, ${lbl}` // 
+                )
+            } else {
+                outputCode.text.push(
+                    `add \$${lastItem.sum}, %edx`,
+                    `mov (%edx), %eax`,
+                    `mov %eax, ${lbl}`
+                )
+            }
+
+            outputCode.text.push(`# --- end property ${returnAddr? "address" : "value"} read ---`,)
+            return {lbl,restOfLine}
+        }
+    },
+    getFormatProperty(name, property, returnAddr = false, restOfLine = []) {
+        if (Object.keys(userVariables).includes(asm.formatLocal(name)))
+        {
+            name = asm.formatLocal(name);
+        }
+        
+        
+
+        // todo, phase this code out. Make it all use the propertyChain list
+
         var fmt = userVariables[name].templatePtr
         var sum = 0;
         var index = 0;
@@ -413,6 +520,7 @@ module.exports = {
 
         //outputCode.text.push("push %edx")
 
+        // note, use (%edx + sum) instead
         if (returnAddr) {
             lbl = this.requestTempLabel(defines.types.u32)
             outputCode.text.push(
@@ -436,6 +544,7 @@ module.exports = {
             typeStack.push(fmt[index].type)
         }
 
+        throwE("PHASE OUT")
         return (lbl)
     },
     indexArr(base, size, ind, keepAddr = false) {
@@ -537,4 +646,22 @@ module.exports = {
 function localsIncludes(word) {
     //console.log("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
     return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
+}
+
+function searchFormatForProperty(fmt, property)
+{
+    var index = -1;
+    var sum = 0;
+    console.log("@@@@@@ scanning @@@@@@", fmt)
+    fmt.templatePtr.every((x, i) => {
+        console.log(i)
+        if (x.name == property) {
+            index = i;
+            return false
+        } else {
+            sum += asm.typeToBits(x.type) / 8
+            return true
+        }
+    })
+    return {sum, value: fmt.templatePtr[index]}
 }

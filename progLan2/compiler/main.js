@@ -8,21 +8,26 @@
 - [NEW] Add proglan file inclusion
 - [NEW] Add function that copies a format, to create a new instance with same values
 - [NEW] Add float casting and vice versa
-- [NEW] Switch class intiators to be called with paren. instead: Car(1,2,3) vs Car<1,2,3>
 - [NEW] Add untyped params
 - [NEW] Add variable freeing (for formats, arrays, and lists)
 - [NEW] Add multi-dim arrays. Setting is done with commas: 2dArr <[# x+1,# y+1]- other2dArr[# x-1,# y-1];
 - [NEW] Add direct parameter from register or return in register, like bob function<eax p1> -> ebx
+- [NEW] Add forward declaration
+- [NEW] (Unfinished) Special local variables can be declared, which places them on the stack. When the compiler sees them, it automatically loads (%esp + x) into the label for that variable
+    - Cannot set
+    - Not incorporated into arrays
+    - Certain other things that store variables, like array indexing, use push. For these, just add a second offset which is the amount of values pushed
+- [NEW] Add static properties
 
+- [HIGH] Local variables don't exist! They are created like normal variables
+- [HIGH] Allow direct polymorphism like myCar.price.imported
 - [HIGH] Allow top level (static allocation) of lists (not arrays)
 - [HIGH] change math engine to use just a regular label like templabel
 - [HIGH] Fix argv
 - [HIGH] Floats cant be compared, since they are stored as IEEE
-- [HIGH] FIXED?? Casting numbers like u8<bob> won't work, for some reason using address of bob
 - [HIGH] fix /Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x
 - [HIGH] Temporarily made math require "#" beforehand, fix this. Originally, math will not work on something like "bob.length * jon" as it will see "length * jon"
-- [HIGH] FOR SOME REASON THERE IS A CIRCULAR ARRAY, AT SOME POINT, THE PRICE FMT IS BEING MODIFIED? (nest.x)
-- [HIGH] Add local variables by making setter and getter functions for accessing user variable types that does it automatically
+- [HIGH] Add local variables by making setter and getter functions for accessing user variable types that does it automatically (need to pop stackOffset at end of function)
 
 - [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
 - [LOW] Fix temp labels creating more than needed, use same system for HAM where each line the counter resets
@@ -30,6 +35,7 @@
 - [LOW] Possible error, make sure that u8 and u16 are being passed correctly to stack when calling function. Must be fully cast to u32
 - [LOW] Maybe change it so that instead having to realloc "this" for each method and init, just have one "this" var dedicated to each format?
 - [LOW] Should I be closing inscope upon "}"? Look at elif for function not setting inscope to null
+- [LOW] Switch class intiators to be called with paren. instead: Car(1,2,3) vs Car<1,2,3>
 */
 
 const fs = require("fs");
@@ -57,11 +63,13 @@ globalThis.bracketStack = [];          // Stack  : All data about currently nest
 globalThis.typeStack = [];             // Stack  : Recent types compiler looked over
 globalThis.lastArrInfo = 0;            // Var    : ?? Size of allocated lists
 globalThis.inscope = 0;                // Var    : Current function information
+globalThis.currentStackOffset = 0;     // Var    : Stack offset for stack allocated variables
 globalThis.freedData = [];             // -- Unused -- (to delete)
 globalThis.mostRecentIfStatement = []  // Stack? : For elifs 
 globalThis.globalInd = 0               // Var    : Current line that the compiler is looking at 
 globalThis.userMacros = {}             // ??
 globalThis.userListInitLengths = {}    // Object : Declaration lengths of lists. Set to -1 if they were set to 0, and have already been allocated
+globalThis.variablesOnStack = {}       // Object: {name: offset, ...}
 
 globalThis.parser = require("./splitter.js"); // parser
 globalThis.defines = require("./defines.js"); // variables like types
@@ -134,6 +142,16 @@ globalThis.userFunctions = {           // Object : {function name: {func name, p
         name: 'scanf_mini',
         parameters: [],
         returnType: defines.types.u32
+    },
+    "malloc": {
+        name: "malloc",
+        parameters: [],
+        returnType: defines.types.p32
+    },
+    "free": {
+        name: "free",
+        parameters: [],
+        returnType: defines.types.u32
     }
 };
 globalThis.assemblyMacros = [          // Array  : All macros declared in assembly
@@ -154,7 +172,7 @@ globalThis.assemblyMacros = [          // Array  : All macros declared in assemb
     "O_ASYNC",
 ]
 globalThis.functionMacros = {          // Todo, maybe delete actually
-    memfill: function(rep, size, value) {
+    memfill: function (rep, size, value) {
         outputCode.push(`.fill ${rep}, ${size}, ${value}`)
         typeStack.push(defines.type.p32);
     }
@@ -204,7 +222,8 @@ globalThis.methodExists = function (n) {
 start()
 
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/nest.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/stackVars.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lists/list.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
@@ -384,6 +403,7 @@ function compileLine(line) {
                 } else { // special type 
                     var area = captureUntil(line, wordNum + 1, ">")
                     console.log("SPECIAL CAST", word, area)
+                    //throwE(defines.types)
                     if (word == "function") { // if function
                         actions.createFunction(offsetWord(-1), area)
                         continue;
@@ -440,14 +460,19 @@ function compileLine(line) {
         }
         else if (localsIncludes(word))  // word = local variable
         {
-
+            if (Object.keys(variablesOnStack).includes(asm.formatLocal(word))) { // stack var
+                actions.readStackVariable(asm.formatLocal(word))
+            }
             line[wordNum] = asm.formatLocal(word)
-            //throwW(line)
             typeStack.push(userVariables[asm.formatLocal(word)])
             word = line[wordNum]
         }
         else if (Object.keys(userVariables).includes(word)) // word = global variable
         {
+            // throwE(Object.keys(variablesOnStack).includes(word))
+            if (Object.keys(variablesOnStack).includes(word)) { // stack var
+                actions.readStackVariable(word)
+            }
             typeStack.push(userVariables[word])
         }
         else if (word == "(" && (localsIncludes(offsetWord(-1))
@@ -505,9 +530,17 @@ function compileLine(line) {
         }
         else if (word == ".") {
             // todo: nested properties like bob.parent.child
-            var ret = actions.getFormatProperty(offsetWord(-1), offsetWord(1))
-            line[wordNum - 1] = ret
-            line.splice(wordNum, 2)
+            // DELETE IF BROKEN March 12 2023
+            if (Object.keys(userVariables).includes(offsetWord(-1)) || localsIncludes(offsetWord(-1))) // for chaining
+            {
+                var ret = actions.getFormatPropertyNew(offsetWord(-1), line.slice(wordNum), false)
+                var lbl = ret.lbl
+                var restOfLine = ret.restOfLine
+                // TODO March 12 2023: make this function chain the result by passing not just the last one
+                line[wordNum - 1] = ret.lbl
+                line.splice(wordNum, restOfLine.length * 2)
+                //throwE(line)
+            }
         }
         else if (word == "<-") { // load something into variable
             var ident = brackStackOffsetFromEnd(1)
@@ -520,13 +553,16 @@ function compileLine(line) {
                 break;
             }
             if (offsetWord(-2) == '.') { // if setting format
-                var ptr = actions.getFormatProperty(offsetWord(-3), offsetWord(-1), true);
+
+                var ret = actions.getFormatPropertyNew(line[0], line.slice(1), true)
+                //throwE(ret)
+                var ptr = ret.lbl
+                //var ptr = actions.getFormatProperty(offsetWord(-3), offsetWord(-1), true);
                 outputCode.text.push("######")
                 actions.twoStepLoadIntoAddr(bracketStack.length == 0 ? outputCode.init : outputCode.text, ptr, offsetWord(1), popTypeStack())
                 outputCode.text.push("######")
                 break;
             }
-            // todo: if brackets, do array, etc
 
             if (Object.keys(userVariables).includes(offsetWord(-1))) // already defined variables
             {
@@ -539,12 +575,15 @@ function compileLine(line) {
             else { // new variables
                 var type = popTypeStack()
                 var nextWord = offsetWord(1);
-
                 // if (parseFloat(offsetWord(-2)) == offsetWord(-2)) {
                 //     // TODO IF ARRAY
                 // }
 
-                actions.createVariable(offsetWord(-1), type, nextWord)
+                if (offsetWord(-2) == "_stack_") {
+                    actions.createStackVariable(offsetWord(-1), type, nextWord)
+                } else {
+                    actions.createVariable(offsetWord(-1), type, nextWord)
+                }
             }
             break;
         }
@@ -552,13 +591,13 @@ function compileLine(line) {
             actions.twoStepLoadAuto(outputCode.text, formatReturn(inscope.returnType), offsetWord(1), popTypeStack(), inscope.returnType)
             outputCode.text.push("swap_stack", "ret") // HERE IF BROKEN REMOVE
         }
-        else if (word == "{") {  
+        else if (word == "{") {
             if (requestBracketStack == 0) { // array init 
                 console.log("--Treating array initiation--")
                 var area = captureUntil(line, wordNum, "}").filter(x => x != ",");
-                
+
                 var isList = offsetWord(-1) == "inf"; // is a list as opposed to an array
-                
+
                 var areaObj = [];
                 area.forEach(x => {
                     areaObj.push({ value: x, type: popTypeStack() });
@@ -567,15 +606,14 @@ function compileLine(line) {
                 if (areaObj.length == 0) {
                     line[wordNum] = "$0"
                     typeStack.push(defines.types.dp32)
-                    lastArrInfo = {size: 0, isList};
+                    lastArrInfo = { size: 0, isList };
                 }
                 else {
                     line[wordNum] = actions.allocateArrayWithContents(areaObj, bracketStack.length == 0, isList)
                 }
                 line.splice(wordNum + 1, area.length * 2) // replace with label and remove 2xlength for commas
                 //throwW(line, isList)
-                if(isList)
-                {
+                if (isList) {
                     line.splice(wordNum - 1, 1);
                     wordNum--;
                 }
@@ -585,6 +623,7 @@ function compileLine(line) {
             if (requestBracketStack.type == "function") {
                 bracketStack.push(objCopy(requestBracketStack))
                 inscope = userFunctions[data.name]
+                currentStackOffset = 0;
             } else if (requestBracketStack.type == "format") {
                 bracketStack.push(objCopy(requestBracketStack))
             } else if (requestBracketStack.type == "if") {
@@ -597,6 +636,7 @@ function compileLine(line) {
                 oldThisType.push(objCopy(userVariables["this"]))
                 userVariables["this"] = defines.types[data.name] // re-type "this"
                 inscope = userInits[data.name]
+                currentStackOffset = 0
                 // NOTE, MODELNUMBER NOT BEING TAKEN AS LOCAL!!! SEE ASM
                 var label = actions.requestTempLabel(defines.types.u32)
                 var totSize = 0;
@@ -616,6 +656,7 @@ function compileLine(line) {
                 // TODO consolidate this into function so that we dont have repeated code for the initializer
                 bracketStack.push(objCopy(requestBracketStack))
                 inscope = formatMethods[data.struct_name][data.name]
+                currentStackOffset = 0;
                 inscope.name = data.struct_name
             }
             requestBracketStack = 0;
@@ -631,7 +672,13 @@ function compileLine(line) {
             var data = bracketStack.pop();
             if (data.type == "function") {
                 var fnInfo = userFunctions[data.data.name]
-                outputCode.text.push("swap_stack", "ret")
+
+                if (currentStackOffset != 0) {
+                    outputCode.text.push(`add \$${currentStackOffset}, %esp`)
+                }
+                outputCode.text.push(
+                    "swap_stack",
+                    "ret")
             }
             else if (data.type == "format") {
                 var _name = data.data.name
@@ -640,7 +687,7 @@ function compileLine(line) {
                 console.log("========CLOSING FORMAT DEFINITION========", properties.map(x => x.type.templatePtr))
                 formats[_name] = objCopy(properties);
                 formatMethods[_name] = {};
-                var fmt = defines.types.___format_template___;
+                var fmt = objCopy(defines.types.___format_template___);
                 fmt.templatePtr = formats[_name];
                 fmt.fmt_name = _name
                 defines.types[_name] = fmt; // push fmt as new type
@@ -798,6 +845,7 @@ function compileLine(line) {
             var addr = wordNum;
             var build = [line[addr++]];
             var toggle = true;
+            outputCode.text.push("# --- math begin ---")
             while ((addr < line.length) && (toggle ? defines.mathOps.includes(line[addr]) : true)) {
                 build.push(line[addr]);
                 toggle = !toggle;
@@ -809,6 +857,7 @@ function compileLine(line) {
             //throwE(userFunctions)
             requestMathFlag = false;
             wordNum++
+            outputCode.text.push("# --- math end ---")
             //throwE(line)
         }
 
