@@ -27,9 +27,18 @@ A 32bit compiled programming language that runs on Linux
 * Floating point
 * Pointers
 * Stdio
+* Stack variables
+
+# Todo
+* Fix command line args
+* HAM` include (currently only assembly)
+* Multi-dimensional arrays
+* Parameter in register or return in register
+* Forward declaration
+* Static properties
+* Much more... (see in `main.js`)
 
 # Docs [link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
-
 
 # Examples
 ### All of the following code compiles and runs
@@ -130,4 +139,4 @@ First uploaded on Nov 4 with working variables, functions, formats, printing
 * March 8? - Added pointers and dereferencing
 * March 9 - Added lists
 * March 10 - Fixed nested formats
-* March 13 - Fixed format nesting
+* March 13 - Fixed format nesting, added stack vars
