@@ -130,3 +130,4 @@ First uploaded on Nov 4 with working variables, functions, formats, printing
 * March 8? - Added pointers and dereferencing
 * March 9 - Added lists
 * March 10 - Fixed nested formats
+* March 13 - Fixed format nesting
