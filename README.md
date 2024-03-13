@@ -44,23 +44,32 @@ A 32bit compiled programming language that runs on Linux
 ### All of the following code compiles and runs
 formats
 ```
-car format 
+Price format
 {
-    name <- p8;
-    price <- u32;
+    imported <- f32;
+    domestic <- f32;
 }
 
-convertToHonda function<car a> -> u32
+Car format
 {
-    a.name <- "honda";
-    printf_mini(a.name, "%s\n");
-    printf_mini(a.price, "%i\n");
+    price <- Price;
+    company <- p8;
+}
+
+inflation function<Price original, f32 percent> -> u32
+{
+    original.domestic <- #f original.domestic * percent + original.domestic;
+    original.imported <- #f original.domestic * percent + original.domestic;
+
+    return 0;
 }
 
 entry function<> -> u32
 {
-    create myCar <- car<name:"kia",price:2000>;
-    convertToHonda(myCar);
+    create myCar <- Car<price:Price<imported:5000,domestic:3000.0f>,company:"kia">;
+    myCar.price.domestic <- 1000.0f;
+    inflation(myCar.price, 0.1f);
+    put_float(myCar.price.domestic);
 }
 ```
 math
@@ -104,25 +113,72 @@ entry function<> -> u32
 ```
 classes
 ```
-Car format 
+Square format
 {
-    brand <- p8;
-    price <- u32;
+    length <- u32;
+    color <- p8;
 }
 
-Car initializer<u32 modelNumber>
+Square initializer<u32 len, p8 col>
 {
-    this.brand <- "Honda";
-    return this;
+    this.length <- len;
+    this.color <- col;
+}
+
+Square volume method<u32 height> -> u32
+{
+    return # this.length * this.length * height;
+}
+
+Square area method<> -> u32
+{
+    return # this.length * this.length;
 }
 
 entry function<> -> u32
 {
-    create myCar <- Car<1>;
-    printf_mini(myCar.brand, "%s\n");
+    create myRoom <- Square<length:10,color:"blue">;
+    create dadsRoom <- Square<20, "red">;
+    printf_mini(myRoom.volume(10), "My room cubic feet: %i\n");
+    printf_mini(dadsRoom.length, "Dads room square feet: %i\n");
 }
 ```
+lists
+```
+lists required;
 
+create myArr <- {8,9,10};
+
+entry function<> -> u32
+{
+    create myList <- inf{1,2,3,4,5,6};
+    
+    myList <[new]- 7;
+    myList <[new]- 8;
+
+    printf_mini(myList[6], "%i\n");
+    printf_mini(myList[7], "%i\n");
+}
+```
+pointers
+```
+create myArr <- {1,2,3,4};
+
+entry function<> -> u32
+{
+    put_int(@u32 # myArr + 4);
+}
+```
+stdio
+```
+entry function<> -> u32
+{
+    create bob <- 0;
+    puts("Write in any number: ");
+    scanf_mini($bob, "%i");
+    printf_mini(bob, "You typed: %i\n");
+}
+```
 # Changelog
 First uploaded on Nov 4 with working variables, functions, formats, printing
 2023  
