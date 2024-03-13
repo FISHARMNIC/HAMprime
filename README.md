@@ -5,11 +5,13 @@ A 32bit compiled programming language that runs on Linux
 # What makes it unique?
 * "Simple but complex"
   * incorporating the use of low-level memory access: Pointers and manual allocation
-  * High-level operations like seamless string operations (WIP)
+  * High-level operations typeless arrays and automatic re-allocation
 * Combining the function-based ideolgy of C, and objects from Java
   * See `formats`, and how they can act as both structures and classes
-* Fully compiled for speed
-* Integration with Linux functions, like printf and mmap
+* Fully compiled language
+  * HAM` compiler generates 32-bit x86 assembly (using GNU assembler)
+* Integration with C functions like printf and scanf
+* Very easy to incorporate assembly
 
 # Currently working
 * Variables
