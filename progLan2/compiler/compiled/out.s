@@ -34,9 +34,13 @@ main:
     ret
 entry:
 swap_stack
-mov $1, %eax
+mov $123, %eax
 pushl %eax
-mov 4(%esp), %edx
+mov $456, %edx
+mov %edx, counter
+mov counter, %edx
+mov %edx, 0(%esp)
+mov 0(%esp), %edx
 mov %edx, counter
 pushl counter
 swap_stack

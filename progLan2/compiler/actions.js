@@ -81,6 +81,14 @@ module.exports = {
         }
         this.twoStepLoadAuto(outputCode.text, _name, value, type, userVariables[_name])
     },
+    loadStackVariable: function (_name, type, value) {
+        this.loadVariable(_name, type, value);
+        var reg = asm.formatRegister("d", userVariables[_name])
+        outputCode.text.push(
+            `mov ${_name}, ${reg}`,
+            `mov ${reg}, ${variablesOnStack[_name]}(%esp)`
+        )
+    },
     createStackVariable: function(_name, type, value)
     {
         outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
@@ -90,8 +98,8 @@ module.exports = {
             `mov ${this.formatIfConstantOrLiteral(value)}, ${reg}`,
             `pushl %eax`
         )
-        currentStackOffset += asm.typeToBits(type) / 8
         variablesOnStack[_name] = currentStackOffset
+        currentStackOffset += asm.typeToBits(type) / 8 
     },
     readStackVariable: function(_name) {
         var reg = asm.formatRegister("d", userVariables[_name])

@@ -1,9 +1,6 @@
 /* TODO: 
 - [NEW] add command line args
-- [NEW] Add floats
-- [NEW] Add polymorphism
 - [NEW] Improve string handling QOL
-- [NEW] Support nested formats
 - [NEW] Add declaring buffer just by giving length
 - [NEW] Add proglan file inclusion
 - [NEW] Add function that copies a format, to create a new instance with same values
@@ -13,12 +10,10 @@
 - [NEW] Add multi-dim arrays. Setting is done with commas: 2dArr <[# x+1,# y+1]- other2dArr[# x-1,# y-1];
 - [NEW] Add direct parameter from register or return in register, like bob function<eax p1> -> ebx
 - [NEW] Add forward declaration
-- [NEW] (Unfinished) Special local variables can be declared, which places them on the stack. When the compiler sees them, it automatically loads (%esp + x) into the label for that variable
-    - Cannot set
-    - Not incorporated into arrays
-    - Certain other things that store variables, like array indexing, use push. For these, just add a second offset which is the amount of values pushed
+- [NEW] (Check if fully working) Special local variables can be declared, which places them on the stack. When the compiler sees them, it automatically loads (%esp + x) into the label for that variable
 - [NEW] Add static properties
 
+- [HIGH] Make all parameters stack vars
 - [HIGH] Local variables don't exist! They are created like normal variables
 - [HIGH] Allow direct polymorphism like myCar.price.imported
 - [HIGH] Allow top level (static allocation) of lists (not arrays)
@@ -223,7 +218,7 @@ start()
 
 function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/stackVars.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lists/list.x"
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
@@ -499,8 +494,8 @@ function compileLine(line) {
                 // var totSize = 0;
                 // formatInfo.forEach(x => { totSize += asm.typeToBits(x.type) })
                 // outputCode.text.push( // allocate for "this"
-                //     `pushl this`,
-                //     `pushl \$${totSize / 8}`,
+                //     `poushl this`,
+                //     `poushl \$${totSize / 8}`,
                 //     `swap_stack`,
                 //     `call __allocate__`,
                 //     `swap_stack`,
@@ -564,6 +559,13 @@ function compileLine(line) {
                 break;
             }
 
+            if (Object.keys(variablesOnStack).includes(formatIfLocal(offsetWord(-1))))
+            {
+                //throwE("ho")
+                actions.loadStackVariable(formatIfLocal(offsetWord(-1)), popTypeStack(), offsetWord(1))
+                break;
+            }
+            // todo: rewrite this ifelse below to use formatIfLocal
             if (Object.keys(userVariables).includes(offsetWord(-1))) // already defined variables
             {
                 actions.loadVariable(offsetWord(-1), popTypeStack(), offsetWord(1))
@@ -904,6 +906,12 @@ function formatReturn(type) {
 function localsIncludes(word) {
     //console.log("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
     return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
+}
+
+function formatIfLocal(word) {
+    if(localsIncludes(word))
+        return asm.formatLocal(word);
+    return word
 }
 
 function captureUntil(arr, offset, char) {
