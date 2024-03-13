@@ -22,7 +22,8 @@
 - [HIGH] Floats cant be compared, since they are stored as IEEE
 - [HIGH] fix /Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x
 - [HIGH] Temporarily made math require "#" beforehand, fix this. Originally, math will not work on something like "bob.length * jon" as it will see "length * jon"
-- [HIGH] Add local variables by making setter and getter functions for accessing user variable types that does it automatically (need to pop stackOffset at end of function)
+- [HIGH] Add local variables by making setter and getter functions for accessing user variable types that does it automatically
+- [HIGH] Lists dont work for stackVars. See stackVars/fail.x
 
 - [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
 - [LOW] Fix temp labels creating more than needed, use same system for HAM where each line the counter resets
@@ -311,6 +312,9 @@ function compileLine(line) {
             if (word == "<") { //setting
                 var base = offsetWord(-1);
                 if (localsIncludes(base)) base = asm.formatLocal(base)
+                if (Object.keys(variablesOnStack).includes(base)) { // stack var
+                    actions.readStackVariable(base)
+                }
                 var baseType = userVariables[base];
                 var index = offsetWord(2);
                 var source = offsetWord(5);

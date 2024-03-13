@@ -89,10 +89,20 @@ module.exports = {
             `mov ${reg}, ${variablesOnStack[_name]}(%esp)`
         )
     },
+    loadVariableSmart: function (_name,type,value) {
+        if(Object.keys(variablesOnStack).includes(_name))
+        {
+            this.loadStackVariable(_name,type,value)
+        }
+        else {
+            this.loadVariable(_name,type,value)
+        }
+    },
     createStackVariable: function(_name, type, value)
     {
-        outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
-        userVariables[_name] = objCopy(type)
+        // outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
+        // userVariables[_name] = objCopy(type)
+        this.createVariable(_name, type, value, false, true)
         var reg = asm.formatRegister("a", type)
         outputCode.text.push(
             `mov ${this.formatIfConstantOrLiteral(value)}, ${reg}`,
@@ -104,11 +114,14 @@ module.exports = {
     readStackVariable: function(_name) {
         var reg = asm.formatRegister("d", userVariables[_name])
         outputCode.text.push(
-                `mov ${variablesOnStack[_name]}(%esp), %edx`,
+                `mov ${this.getStackOffset(_name)}(%esp), %edx`,
                 `mov ${reg}, ${_name}`
         )
     },
-    createVariable: function (_name, type, value, asParam = false) {
+    getStackOffset: function(_name) {
+        return currentStackOffset - 4 - variablesOnStack[_name]
+    },
+    createVariable: function (_name, type, value, asParam = false, dummy = false) {
         //throwE("CREATING", _name, type)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
 
@@ -139,11 +152,13 @@ module.exports = {
             } else {
                 out += '0'
 
+                if(!dummy) {
                 if (type.dblRef) {
                     this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
                 } else {
                     this.twoStepLoadConst("auto", _name, value, type)
                 }
+            }
             }
             if (type.size == 64) {
 
@@ -154,6 +169,11 @@ module.exports = {
                 }
 
                 userListInitLengths[_name] = lastArrInfo.size;
+            }
+            if(dummy)
+            {
+                outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
+                return 
             }
             outputCode.data.push(out)
             //throwE(outputCode.data)
