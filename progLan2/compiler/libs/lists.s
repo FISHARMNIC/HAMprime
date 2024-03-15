@@ -24,7 +24,9 @@ realloc: # for user
     popa
 
 realloc_rapid: # for list reallocation - copies 4 bytes one by one
-    pusha
+    
+    push %ebp
+
     swap_stack
     pop %edi # old size, newSize = old + 1
     pop %esi # buffer
@@ -33,7 +35,10 @@ realloc_rapid: # for list reallocation - copies 4 bytes one by one
     inc %ecx     # new size = old + 1
     shl $2, %ecx # multiply by 4 for new size in bits
 
-    push %ebp; push %esi; push %edi
+    push %ebp; 
+    push %esi; 
+    push %edi;
+
     mov $192, %eax    # mmap2
     xor %ebx, %ebx    # allocate, null means find your own spot
     mov $0x7, %edx    # protection: PROT_READ|PROT_WRITE|PROT_EXEC
@@ -63,8 +68,12 @@ realloc_rapid: # for list reallocation - copies 4 bytes one by one
     
     mov $91, %eax # munmap
     int $0x80     # free
+
+    popl __return_32__ # return address
     
-    pop __return_32__ # return address
     swap_stack
-    popa
+    
+    pop %ebp
+    
+    //add $8, %ebp 
     ret

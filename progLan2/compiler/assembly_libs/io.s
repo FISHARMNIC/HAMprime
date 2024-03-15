@@ -26,7 +26,7 @@ swap_stack
 call put_string
 */
 put_string:
-    pusha
+    //pusha
     swap_stack
     pop %edx # length
     pop %ecx # buffer
@@ -34,31 +34,31 @@ put_string:
     mov $1, %ebx # file desc
     int $0x80
     swap_stack
-    popa
+    //popa
     ret
 
 printf_mini:
-    pusha
+    //pusha
     swap_stack 
     // in stack: buffer, fmt
     call printf
     add $8, %esp
     swap_stack
-    popa
+    //popa
     ret
 
 scanf_mini:
-    pusha
+    //pusha
     swap_stack 
     // in stack: buffer, fmt
     call scanf
     add $8, %esp
     swap_stack
-    popa
+    //popa
     ret
 
 puts:
-    pusha
+    //pusha
     swap_stack
     popl %eax # str
     push %eax
@@ -66,7 +66,7 @@ puts:
     call printf
     add $8, %esp
     swap_stack
-    popa
+    //popa
     ret
 
 put_int:
@@ -80,7 +80,7 @@ put_int:
     ret
 
 put_float:
-    pusha
+    //pusha
     swap_stack
     movss (%esp), %xmm0
     cvtss2sd %xmm0, %xmm2
@@ -90,6 +90,6 @@ put_float:
     push $PRINTF_FLOAT
     call printf
     swap_stack
-    popa
+    //popa
     ret
     

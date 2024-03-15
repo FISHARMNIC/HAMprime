@@ -1,0 +1,90 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "HAM`",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#types"
+		},
+		{
+			"include": "#functions"
+		},
+		{
+			"include": "#support"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.ham",
+					"match": "\\b(if|while|for|return|elif|else)\\b"
+				}
+			]
+		},
+		"strings": {
+			"patterns": [
+				{
+					"name": "string.quoted.double.ham",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [
+						{
+							"name": "constant.character.escape.ham",
+							"match": "\\\\."
+						}
+					],
+					"captures": {
+						"0": {
+							"name": "string.quoted.double.ham"
+						}
+					}
+				}
+			]
+		},
+		"types": {
+			"patterns": [
+				{
+					"name": "storage.type.ham",
+					"match": "\\b(u8|u16|u32|p8|p16|p32)\\b"
+				}
+			]
+		},
+		"functions": {
+			"patterns": [
+				{
+					"name": "entity.name.function.ham",
+					"match": "\\b\\w+\\s*(?=\\()"
+				}
+			]
+		},
+		"support": {
+			"patterns": [
+				{
+					"name": "keyword.other.ham",
+					"match": "\\b(function|format|create)\\b(?!\\s*format\\b)",
+					"captures": {
+						"0": {
+							"name": "keyword.other.ham.red"
+						}
+					}
+				},
+				{
+					"name": "keyword.other.ham",
+					"match": "\\b\\w+\\s*format\\b",
+					"captures": {
+						"0": {
+							"name": "keyword.other.ham.red"
+						}
+					}
+				}
+			]
+		}
+	},
+	"scopeName": "source.ham"
+}

@@ -11,11 +11,13 @@
 - [NEW] Add direct parameter from register or return in register, like bob function<eax p1> -> ebx
 - [NEW] Add forward declaration
 - [NEW] (Check if fully working) Special local variables can be declared, which places them on the stack. When the compiler sees them, it automatically loads (%esp + x) into the label for that variable
+    - Lists do not work
 - [NEW] Add static properties
+- [NEW] Make all dynam. allocated things freed at the end of the function. If you add a keyword "keep" then it is not freed
 
+- [HIGH] Lists cannot be passed as params
 - [HIGH] Make all parameters stack vars
 - [HIGH] Local variables don't exist! They are created like normal variables
-- [HIGH] Allow direct polymorphism like myCar.price.imported
 - [HIGH] Allow top level (static allocation) of lists (not arrays)
 - [HIGH] change math engine to use just a regular label like templabel
 - [HIGH] Fix argv
@@ -565,7 +567,7 @@ function compileLine(line) {
 
             if (Object.keys(variablesOnStack).includes(formatIfLocal(offsetWord(-1))))
             {
-                //throwE("ho")
+                //throwE()
                 actions.loadStackVariable(formatIfLocal(offsetWord(-1)), popTypeStack(), offsetWord(1))
                 break;
             }

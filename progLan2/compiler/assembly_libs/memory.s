@@ -4,7 +4,7 @@ function allocate(u32 length) -> u32(%eax)
 */
 __allocate__:
     swap_stack
-    popl %ecx # length
+    pop %ecx # length
     push %ebp 
     mov $192, %eax    # mmap2
     xor %ebx, %ebx    # allocate, null means find your own spot

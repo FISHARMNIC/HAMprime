@@ -82,24 +82,22 @@ module.exports = {
         this.twoStepLoadAuto(outputCode.text, _name, value, type, userVariables[_name])
     },
     loadStackVariable: function (_name, type, value) {
-        this.loadVariable(_name, type, value);
+        //this.loadVariable(_name, type, value);
         var reg = asm.formatRegister("d", userVariables[_name])
         outputCode.text.push(
-            `mov ${_name}, ${reg}`,
-            `mov ${reg}, ${variablesOnStack[_name]}(%esp)`
+            `mov ${this.formatIfConstantOrLiteral(value)}, ${reg}`,
+            `mov %edx, ${this.getStackOffset(_name)}(%esp)`
         )
     },
-    loadVariableSmart: function (_name,type,value) {
-        if(Object.keys(variablesOnStack).includes(_name))
-        {
-            this.loadStackVariable(_name,type,value)
+    loadVariableSmart: function (_name, type, value) {
+        if (Object.keys(variablesOnStack).includes(_name)) {
+            this.loadStackVariable(_name, type, value)
         }
         else {
-            this.loadVariable(_name,type,value)
+            this.loadVariable(_name, type, value)
         }
     },
-    createStackVariable: function(_name, type, value)
-    {
+    createStackVariable: function (_name, type, value) {
         // outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
         // userVariables[_name] = objCopy(type)
         this.createVariable(_name, type, value, false, true)
@@ -109,16 +107,32 @@ module.exports = {
             `pushl %eax`
         )
         variablesOnStack[_name] = currentStackOffset
-        currentStackOffset += asm.typeToBits(type) / 8 
+        currentStackOffset += asm.typeToBits(type) / 8
+        console.log("~~~~~~~~~~ Changing current stack offset. Now is:", currentStackOffset)
+        if (lastArrInfo.isList) {
+            outputCode.text.push(
+                `mov ${asm.formatListSizeVar(_name)}, ${reg}`,
+                `pushl %eax`
+            )
+            variablesOnStack[asm.formatListSizeVar(_name)] = currentStackOffset
+            currentStackOffset += 4
+            console.log("~~~~~~~~~~ Changing current stack offset. Now is:", currentStackOffset)
+        }
     },
-    readStackVariable: function(_name) {
+    readStackVariable: function (_name) {
         var reg = asm.formatRegister("d", userVariables[_name])
         outputCode.text.push(
-                `mov ${this.getStackOffset(_name)}(%esp), %edx`,
-                `mov ${reg}, ${_name}`
+            `# -- loading "${_name}" from stack --`,
+            `mov ${this.getStackOffset(_name)}(%esp), %edx`,
+            `mov ${reg}, ${_name}`
         )
     },
-    getStackOffset: function(_name) {
+    getStackOffset: function (_name) {
+        console.log("@@@~~~~~~~ Offset for", _name, variablesOnStack[_name], "stack set to:", currentStackOffset, "->", currentStackOffset - 4 - variablesOnStack[_name])
+        if(_name == "counter")
+        {
+            //throwE(variablesOnStack, currentStackOffset) // should be offsetting 20. 8 bytes off. Something is wrong
+        }
         return currentStackOffset - 4 - variablesOnStack[_name]
     },
     createVariable: function (_name, type, value, asParam = false, dummy = false) {
@@ -152,30 +166,28 @@ module.exports = {
             } else {
                 out += '0'
 
-                if(!dummy) {
-                if (type.dblRef) {
-                    this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
-                } else {
-                    this.twoStepLoadConst("auto", _name, value, type)
+                if (!dummy) {
+                    if (type.dblRef) {
+                        this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
+                    } else {
+                        this.twoStepLoadConst("auto", _name, value, type)
+                    }
                 }
-            }
             }
             if (type.size == 64) {
 
                 userVariables[_name] = objCopy(defines.types.p32);
-                if(lastArrInfo.isList) 
-                {
+                if (lastArrInfo.isList) {
                     this.createVariable(asm.formatListSizeVar(_name), defines.types.u32, lastArrInfo.size)
                 }
 
                 userListInitLengths[_name] = lastArrInfo.size;
             }
-            if(dummy)
-            {
+            if (dummy) {
                 outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
-                return 
+            } else {
+                outputCode.data.push(out)
             }
-            outputCode.data.push(out)
             //throwE(outputCode.data)
         }
 
@@ -441,49 +453,44 @@ module.exports = {
 
     },
     getFormatPropertyNew(name, restOfLine = [], returnAddr = false) {
-        if (localsIncludes(name))
-        {
+        if (localsIncludes(name)) {
             name = asm.formatLocal(name);
         }
-        
+
         var restIndex = -1;
         //throwE(restOfLine)
-        if(restOfLine[0] == ".")
-        {
-      
+        if (restOfLine[0] == ".") {
+
             restIndex = 0;
             var flipFlop = false;
             // bob . bob . bob
-            while((!flipFlop && restOfLine[restIndex] == ".") || flipFlop)
-            {
+            while ((!flipFlop && restOfLine[restIndex] == ".") || flipFlop) {
                 flipFlop = !flipFlop;
                 restIndex++;
             }
-            restOfLine = restOfLine.slice(0,restIndex).filter(x=>x!=".");
+            restOfLine = restOfLine.slice(0, restIndex).filter(x => x != ".");
             var propertyChain = [];
             var host = userVariables[name]
-            
+
             //throwE(name, restOfLine, userVariables[name])
             // get each chains offset and type
             restOfLine.forEach(x => {
-                var out = searchFormatForProperty(host,x)
+                var out = searchFormatForProperty(host, x)
                 propertyChain.push(out)
-                host = out.value? out.value.type : 0
+                host = out.value ? out.value.type : 0
             })
             var lastItem = propertyChain[propertyChain.length - 1]
-            var lbl = returnAddr? this.requestTempLabel(defines.types.u32) : this.requestTempLabel(lastItem.value.type)
-            
+            var lbl = returnAddr ? this.requestTempLabel(defines.types.u32) : this.requestTempLabel(lastItem.value.type)
+
             outputCode.text.push(
-                `# --- beginning property ${returnAddr? "address" : "value"} read ---`,
+                `# --- beginning property ${returnAddr ? "address" : "value"} read ---`,
                 `mov ${name}, %edx`
             )
-            if(propertyChain.length == 1)
-            {
+            if (propertyChain.length == 1) {
                 outputCode.text.push(
                     `add \$${propertyChain[0].sum}, %edx` //
                 )
-                if(returnAddr)
-                {
+                if (returnAddr) {
                     outputCode.text.push(
                         `mov %edx, ${lbl}`,
                     )
@@ -493,9 +500,9 @@ module.exports = {
                         `mov %eax, ${lbl}`,
                     )
                 }
-                return {lbl,restOfLine}
+                return { lbl, restOfLine }
             }
-            propertyChain.slice(0,propertyChain.length - 1).forEach(x => {
+            propertyChain.slice(0, propertyChain.length - 1).forEach(x => {
                 outputCode.text.push(
                     `add \$${x.sum}, %edx`,
                     `mov (%edx), %eax`,
@@ -503,8 +510,7 @@ module.exports = {
                 )
             })
 
-            if(returnAddr)
-            {
+            if (returnAddr) {
                 outputCode.text.push(
                     `add \$${lastItem.sum}, %edx`,
                     `mov %edx, ${lbl}` // 
@@ -517,17 +523,16 @@ module.exports = {
                 )
             }
 
-            outputCode.text.push(`# --- end property ${returnAddr? "address" : "value"} read ---`,)
-            return {lbl,restOfLine}
+            outputCode.text.push(`# --- end property ${returnAddr ? "address" : "value"} read ---`,)
+            return { lbl, restOfLine }
         }
     },
     getFormatProperty(name, property, returnAddr = false, restOfLine = []) {
-        if (Object.keys(userVariables).includes(asm.formatLocal(name)))
-        {
+        if (Object.keys(userVariables).includes(asm.formatLocal(name))) {
             name = asm.formatLocal(name);
         }
-        
-        
+
+
 
         // todo, phase this code out. Make it all use the propertyChain list
 
@@ -616,7 +621,7 @@ module.exports = {
                 return { value: x.value, type: defines.types.u32 }
             })
             typeStack.push(defines.types.dp32);
-            lastArrInfo = {size: contents.length, isList};
+            lastArrInfo = { size: contents.length, isList };
             /* above returns a new pointer to allocated data. If we set our own var to this pointer,
             *  we get a double pointer. Special type dp32 tells compiler to deference the pointer
             *  when creating a new variable
@@ -637,6 +642,9 @@ module.exports = {
     },
     listNewItem(list_name, list_type, new_item) {
         var oldSize = asm.formatListSizeVar(list_name);
+        if (Object.keys(variablesOnStack).includes(oldSize)) {
+            this.readStackVariable(oldSize)
+        }
         if (userListInitLengths[list_name] == 0) {
             outputCode.text.push(
                 `pushl \$4`,
@@ -665,9 +673,19 @@ module.exports = {
             `mov ${actions.formatIfConstantOrLiteral(new_item)}, %ebx`,
             `mov ${oldSize}, %ecx`,
             `mov %ebx, (%eax, %ecx, 4)`,
-            `incl ${oldSize}`,
-            `# --- array load end ---`
+            `incl ${oldSize}`
         )
+        if(this.isOnStack(oldSize))
+        {
+            this.loadStackVariable(oldSize, 0, oldSize)
+        }
+            outputCode.text.push(
+                `# --- array load end ---`
+            )
+    },
+    isOnStack: function(_name)
+    {
+        return Object.keys(variablesOnStack).includes(_name)
     }
 }
 
@@ -676,8 +694,7 @@ function localsIncludes(word) {
     return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
 }
 
-function searchFormatForProperty(fmt, property)
-{
+function searchFormatForProperty(fmt, property) {
     var index = -1;
     var sum = 0;
     console.log("@@@@@@ scanning @@@@@@", fmt)
@@ -691,5 +708,5 @@ function searchFormatForProperty(fmt, property)
             return true
         }
     })
-    return {sum, value: fmt.templatePtr[index]}
+    return { sum, value: fmt.templatePtr[index] }
 }
