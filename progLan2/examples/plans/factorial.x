@@ -1,5 +1,3 @@
-create sub <- 0;
-
 factorial function<u32 number> -> u32
 {
     if(number == 0)
@@ -8,12 +6,11 @@ factorial function<u32 number> -> u32
     }
     else
     {
-        return # number * factorial(# number - 1);
+        return # number * factorial(# number + -1);
     }
 }
 
 entry function<> -> u32
 {
-    factorial(1);
-    //printf_mini(,"%i\n");
+    printf_mini(factorial(5),"%i\n");
 }

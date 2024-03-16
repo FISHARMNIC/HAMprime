@@ -1,4 +1,4 @@
-car format 
+Car format 
 {
     name <- p8;
     price <- u32;
@@ -6,7 +6,7 @@ car format
 
 entry function<> -> u32
 {
-    create myCar <- car<name:"kia",price:2000>;
+    create myCar <- Car<name:"kia",price:2000>;
     myCar.name <- "Honda";
     put_string(myCar.name, 5);
 }

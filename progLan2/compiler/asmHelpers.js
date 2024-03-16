@@ -64,6 +64,35 @@ module.exports = {
 
         }
     },
+    handleParamsNew(_name, params) {
+        console.log("=+=======+= STACK RESET ")
+        currentStackOffset = 0;
+
+        var finalParams = [];
+        var tempout = []
+        params = params.filter(x=> x!= ",")
+        params.forEach(x => {
+                var fp = {
+                    name: x,
+                    type: popTypeStack()
+                }
+
+                var localName = asm.formatLocal(x, _name)
+                tempout.push(
+                    `pop %edx; mov ${asm.formatRegister('d', fp.type.special ? defines.types.p32 : fp.type)}, ${localName}`
+                )
+                finalParams.push(fp)
+        })
+
+        outputCode.text.push(...tempout.reverse());
+
+        finalParams.forEach(x => {
+            var localName = asm.formatLocal(x.name, _name)
+            actions.createStackVariable(localName, x.type, localName)
+        })
+
+        return finalParams
+    },
     handleParams(_name, params) {
         var finalParams = [];
         params.forEach(x => {

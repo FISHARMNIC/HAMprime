@@ -7,21 +7,21 @@
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/memory.s"
 
 # additional libs
-.include "/Users/squijano/Documents/progLan2/compiler/libs/lists.s"
+
 
 .data
 __fpu_temp__: .4byte 0
 ######## user data section ########
-counter: .4byte 0
-myArr: .4byte 0
-myList_length: .4byte 0
-myList: .4byte 0
-_compLITERAL0: .asciz "var: %i\n"
-_compLITERAL1: .asciz "index: %i\n"
-_compLITERAL2: .asciz "length: %i\n"
+_loc_convertToHonda_a: .4byte 0
+_compLITERAL0: .asciz "honda"
+_compLITERAL1: .asciz "%s\n"
+_compLITERAL2: .asciz "%i\n"
+_compLITERAL3: .asciz "kia"
+myCar: .4byte 0
 __TEMP32_0__: .4byte 0 
 __TEMP32_1__: .4byte 0 
 __TEMP32_2__: .4byte 0 
+__TEMP32_3__: .4byte 0 
 ###################################
 .text
 
@@ -30,7 +30,8 @@ __TEMP32_2__: .4byte 0
 
 user_init:
 #### compiler initation section ###
-
+mov _loc_convertToHonda_a, %edx
+mov %edx, _loc_convertToHonda_a
 ###################################
 ret
 
@@ -41,110 +42,71 @@ main:
     //swap_stack
     call entry
     ret
-entry:
+convertToHonda:
 swap_stack
-mov $123, %eax
+pop %edx; mov %edx, _loc_convertToHonda_a
+mov _loc_convertToHonda_a, %eax
 pushl %eax
-mov $456, %edx
-mov %edx, 0(%esp)
-# ------ begin dynamic alloc ------
-pushl $12
-swap_stack
-call __allocate__
-mov %eax, __TEMP32_0__
-swap_stack
-movl $1, (%eax)
-add $4, %eax
-movl $1, (%eax)
-add $4, %eax
-movl $3, (%eax)
-add $4, %eax
-# ------- end dynamic alloc -------
-mov __TEMP32_0__, %eax
-pushl %eax
-# -- loading "myArr" from stack --
+# -- loading "_loc_convertToHonda_a" from stack --
 mov 0(%esp), %edx
-mov %edx, myArr
-# -- array load begin --
-mov myArr, %eax
-mov $2, %ebx
-mov %ebx, 8(%eax)
-# --- array load end ---
-# -- loading "myArr" from stack --
+mov %edx, _loc_convertToHonda_a
+# --- beginning property address read ---
+mov _loc_convertToHonda_a, %edx
+add $0, %edx
+mov %edx, __TEMP32_0__
+######
+mov __TEMP32_0__, %edx
+mov $_compLITERAL0, %eax
+mov %eax, (%edx)
+######
+# -- loading "_loc_convertToHonda_a" from stack --
 mov 0(%esp), %edx
-mov %edx, myArr
-# ------ begin dynamic alloc ------
-pushl $12
-swap_stack
-call __allocate__
+mov %edx, _loc_convertToHonda_a
+# --- beginning property value read ---
+mov _loc_convertToHonda_a, %edx
+add $0, %edx
+mov (%edx), %eax
 mov %eax, __TEMP32_1__
-swap_stack
-movl $4, (%eax)
-add $4, %eax
-movl $5, (%eax)
-add $4, %eax
-movl $6, (%eax)
-add $4, %eax
-# ------- end dynamic alloc -------
-mov $3, %edx
-mov %edx, myList_length
-mov __TEMP32_1__, %eax
-pushl %eax
-mov myList_length, %eax
-pushl %eax
-# -- loading "myList" from stack --
-mov 4(%esp), %edx
-mov %edx, myList
-# -- loading "myList_length" from stack --
-mov 0(%esp), %edx
-mov %edx, myList_length
-# -- array append begin --
-push myList
-push myList_length
-swap_stack
-call realloc_rapid
-swap_stack
-mov __return_32__, %eax
-mov %eax, myList
-# --- array append end ---
-# -- array load begin --
-mov myList, %eax
-mov $7, %ebx
-mov myList_length, %ecx
-mov %ebx, (%eax, %ecx, 4)
-incl myList_length
-mov myList_length, %edx
-mov %edx, 0(%esp)
-# --- array load end ---
-# -- loading "myList" from stack --
-mov 4(%esp), %edx
-mov %edx, myList
-# -- loading "counter" from stack --
-mov 12(%esp), %edx
-mov %edx, counter
-pushl counter
-pushl $_compLITERAL0
-swap_stack
-call printf_mini
-swap_stack
-# -- array read begin --
-mov myArr, %eax
-mov 8(%eax), %ebx
-mov %ebx, __TEMP32_2__
-# --- array read end ---
-pushl __TEMP32_2__
+pushl __TEMP32_1__
 pushl $_compLITERAL1
 swap_stack
 call printf_mini
 swap_stack
-# -- loading "myList_length" from stack --
+# -- loading "_loc_convertToHonda_a" from stack --
 mov 0(%esp), %edx
-mov %edx, myList_length
-pushl myList_length
+mov %edx, _loc_convertToHonda_a
+# --- beginning property value read ---
+mov _loc_convertToHonda_a, %edx
+add $4, %edx
+mov (%edx), %eax
+mov %eax, __TEMP32_2__
+pushl __TEMP32_2__
 pushl $_compLITERAL2
 swap_stack
 call printf_mini
 swap_stack
-add $16, %esp
+add $4, %esp
+swap_stack
+ret
+entry:
+swap_stack
+# ------ begin format alloc ------
+pushl $8
+swap_stack
+call __allocate__
+mov %eax, __TEMP32_3__
+swap_stack
+add $0, %eax
+mov $_compLITERAL3, %edx
+mov %edx, (%eax)
+add $4, %eax
+movl $2000, (%eax)
+# ------ end format alloc ------
+mov __TEMP32_3__, %edx
+mov %edx, myCar
+pushl myCar
+swap_stack
+call convertToHonda
+swap_stack
 swap_stack
 ret

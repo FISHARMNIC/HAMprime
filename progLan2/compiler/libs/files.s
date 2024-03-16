@@ -36,7 +36,10 @@ O_ASYNC    =   020000
 function fopen(p8 path, u32 flags) -> (%eax file descriptor)
 */
 fopen:
-    pusha
+    push %eax
+    push %ecx
+    push %ebx
+
     swap_stack
     mov $0x05, %eax  # syscall "open"
     pop %ecx         # flags/perms
@@ -45,14 +48,21 @@ fopen:
     int $0x80
     mov %eax, __return_32__
     swap_stack
-    popa
+    
+    pop %ebx
+    pop %ecx
+    pop %eax
+
     ret
 
 /*
 function fwrite(u32 fd, p8 buffer, u32, bytes)
 */
 fwrite:
-    pusha
+    push %eax
+    push %ecx
+    push %ebx
+
     swap_stack
     mov $0x04, %eax  # syscall "write"
     
@@ -63,14 +73,21 @@ fwrite:
     swap_stack
     int $0x80
     mov %eax, __return_32__
-    popa
+    
+    pop %eax
+    pop %ecx
+    pop %ebx
+
     ret
 
 /*
 function fread(u32 fd, p8 buffer, u32, bytes)
 */
 fread:
-    pusha
+    push %eax
+    push %ecx
+    push %ebx
+
     swap_stack
     mov $0x03, %eax  # syscall "read"
     
@@ -81,19 +98,29 @@ fread:
     swap_stack
     int $0x80
     mov %eax, __return_32__
-    popa
+    
+    pop %eax
+    pop %ecx
+    pop %ebx
+
     ret
 
 /*
 function fclose(u32 fd) -> (%eax exit code)
 */
 fclose:
-    pusha
+    push %eax
+    push %ecx
+    push %ebx
+
     swap_stack
     mov $0x06, %eax
     pop %ebx         # file descriptor
     swap_stack
     int $0x80
     mov %eax, __return_32__
-    popa
+    
+    pop %eax
+    pop %ecx
+    pop %ebx
     ret

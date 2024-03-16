@@ -15,6 +15,8 @@
 - [NEW] Add static properties
 - [NEW] Make all dynam. allocated things freed at the end of the function. If you add a keyword "keep" then it is not freed
 
+- [HIGH] Math not working on minus sign. See factorial.x: MATH ON [ '_loc_factorial_number' ] should include - 1
+- [HIGH] Make sure initializers and methods use asm.handleParamsNew
 - [HIGH] Lists cannot be passed as params
 - [HIGH] Make all parameters stack vars
 - [HIGH] Local variables don't exist! They are created like normal variables
@@ -25,7 +27,7 @@
 - [HIGH] fix /Users/squijano/Documents/progLan2/examples/tests/flow/factorial.x
 - [HIGH] Temporarily made math require "#" beforehand, fix this. Originally, math will not work on something like "bob.length * jon" as it will see "length * jon"
 - [HIGH] Add local variables by making setter and getter functions for accessing user variable types that does it automatically
-- [HIGH] Lists dont work for stackVars. See stackVars/fail.x
+- [HIGH] Lists dont work for stackVars
 
 - [LOW] MAKE REQUEST BRACKET STACK AN ARR, SO EVEN MORE NESTING? (most likely not needed)
 - [LOW] Fix temp labels creating more than needed, use same system for HAM where each line the counter resets
@@ -221,8 +223,11 @@ start()
 
 function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/formatAsParam.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/recursiveSum.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lists/list.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/functions/function.x"
+    
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -406,7 +411,7 @@ function compileLine(line) {
                     console.log("SPECIAL CAST", word, area)
                     //throwE(defines.types)
                     if (word == "function") { // if function
-                        actions.createFunction(offsetWord(-1), area)
+                        actions.createFunctionNew(offsetWord(-1), area)
                         continue;
                     } else if (word == "initializer") // if constructor
                     {
@@ -485,12 +490,12 @@ function compileLine(line) {
             var fn = offsetWord(-1)
 
             var params = captureUntil(line, wordNum, ")")
-            if (offsetWord(-2) == ".") {
+            if (offsetWord(-2) == ".") { // method
                 var className = offsetWord(-3)
                 //throwE("calling method", methodExists(fn))
 
                 oldThisType.push(objCopy(userVariables["this"]))
-                userVariables["this"] = userVariables[className] // re-type "this"
+                userVariables["this"] = objCopy(userVariables[className]) // re-type "this"
 
                 var label = actions.requestTempLabel(defines.types.u32)
 
@@ -597,6 +602,7 @@ function compileLine(line) {
         }
         else if (word == "return") {
             actions.twoStepLoadAuto(outputCode.text, formatReturn(inscope.returnType), offsetWord(1), popTypeStack(), inscope.returnType)
+            actions.clearStackVariables(true)
             outputCode.text.push("swap_stack", "ret") // HERE IF BROKEN REMOVE
         }
         else if (word == "{") {
@@ -631,7 +637,6 @@ function compileLine(line) {
             if (requestBracketStack.type == "function") {
                 bracketStack.push(objCopy(requestBracketStack))
                 inscope = userFunctions[data.name]
-                currentStackOffset = 0;
             } else if (requestBracketStack.type == "format") {
                 bracketStack.push(objCopy(requestBracketStack))
             } else if (requestBracketStack.type == "if") {
@@ -644,7 +649,8 @@ function compileLine(line) {
                 oldThisType.push(objCopy(userVariables["this"]))
                 userVariables["this"] = defines.types[data.name] // re-type "this"
                 inscope = userInits[data.name]
-                currentStackOffset = 0
+                //console.log("=+=======+= STACK RESET initializer")
+                //currentStackOffset = 0
                 // NOTE, MODELNUMBER NOT BEING TAKEN AS LOCAL!!! SEE ASM
                 var label = actions.requestTempLabel(defines.types.u32)
                 var totSize = 0;
@@ -652,20 +658,28 @@ function compileLine(line) {
                 formats[data.name].forEach(x => { totSize += asm.typeToBits(x.type) })
 
                 outputCode.text.push( // allocate for "this"
-                    `pushl this`,
+                    //`pushl this`,
                     `pushl \$${totSize / 8}`,
                     `swap_stack`,
                     `call __allocate__`,
                     `swap_stack`,
-                    `mov %eax, this`
+                    `push %eax`
                 )
+
+                actions.allocateExistingStackVarNoPush("this")
+
                 //throwE(outputCode.text)
             } else if (requestBracketStack.type == "method") {
                 // TODO consolidate this into function so that we dont have repeated code for the initializer
                 bracketStack.push(objCopy(requestBracketStack))
                 inscope = formatMethods[data.struct_name][data.name]
-                currentStackOffset = 0;
+                //console.log("=+=======+= STACK RESET method")
+                //currentStackOffset = 0;
                 inscope.name = data.struct_name
+                outputCode.text.push(
+                    `pushl this`
+                )
+                actions.allocateExistingStackVarNoPush("this")
             }
             requestBracketStack = 0;
         }
@@ -681,9 +695,8 @@ function compileLine(line) {
             if (data.type == "function") {
                 var fnInfo = userFunctions[data.data.name]
 
-                if (currentStackOffset != 0) {
-                    outputCode.text.push(`add \$${currentStackOffset}, %esp`)
-                }
+                actions.clearStackVariables();
+
                 outputCode.text.push(
                     "swap_stack",
                     "ret")
@@ -723,15 +736,21 @@ function compileLine(line) {
                 )
             }
             else if (data.type == "initializer") {
+                
+                actions.readStackVariable("this")
                 outputCode.text.push(
-                    "mov this, %edx",
-                    "mov %edx, __return_32__",
-                    "popl this",
+                    `mov this, %eax`,
+                    `mov %eax, __return_32__`
+                    )
+                actions.clearStackVariables();
+                
+                outputCode.text.push(
                     "swap_stack",
                     "ret")
                 userVariables["This"] = oldThisType.pop()
             }
             else if (data.type == "method") {
+                actions.clearStackVariables();
                 outputCode.text.push("swap_stack", "ret")
             }
         }

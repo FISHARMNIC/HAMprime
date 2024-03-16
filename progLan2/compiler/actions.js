@@ -101,23 +101,27 @@ module.exports = {
         // outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
         // userVariables[_name] = objCopy(type)
         this.createVariable(_name, type, value, false, true)
+
         var reg = asm.formatRegister("a", type)
         outputCode.text.push(
             `mov ${this.formatIfConstantOrLiteral(value)}, ${reg}`,
             `pushl %eax`
         )
-        variablesOnStack[_name] = currentStackOffset
-        currentStackOffset += asm.typeToBits(type) / 8
+        this.allocateExistingStackVarNoPush(_name)
+
         console.log("~~~~~~~~~~ Changing current stack offset. Now is:", currentStackOffset)
         if (lastArrInfo.isList) {
             outputCode.text.push(
                 `mov ${asm.formatListSizeVar(_name)}, ${reg}`,
                 `pushl %eax`
             )
-            variablesOnStack[asm.formatListSizeVar(_name)] = currentStackOffset
-            currentStackOffset += 4
+            this.allocateExistingStackVarNoPush(asm.formatListSizeVar(_name))
             console.log("~~~~~~~~~~ Changing current stack offset. Now is:", currentStackOffset)
         }
+    },
+    allocateExistingStackVarNoPush: function (_name) {
+        variablesOnStack[_name] = currentStackOffset
+        currentStackOffset += 4
     },
     readStackVariable: function (_name) {
         var reg = asm.formatRegister("d", userVariables[_name])
@@ -127,10 +131,17 @@ module.exports = {
             `mov ${reg}, ${_name}`
         )
     },
+    clearStackVariables: function (onlyAsm = false) {
+        if (currentStackOffset != 0) {
+            outputCode.text.push(`add \$${currentStackOffset}, %esp`)
+        }
+        if (!onlyAsm) {
+            currentStackOffset = 0;
+        }
+    },
     getStackOffset: function (_name) {
         console.log("@@@~~~~~~~ Offset for", _name, variablesOnStack[_name], "stack set to:", currentStackOffset, "->", currentStackOffset - 4 - variablesOnStack[_name])
-        if(_name == "counter")
-        {
+        if (_name == "counter") {
             //throwE(variablesOnStack, currentStackOffset) // should be offsetting 20. 8 bytes off. Something is wrong
         }
         return currentStackOffset - 4 - variablesOnStack[_name]
@@ -246,7 +257,28 @@ module.exports = {
             this.twoStepLoadPtr(outbuffer, _name, value, type, dest_type);
         }
     },
-    createFunction: function (_name, params) {
+    createFunctionNew: function (_name, params) {
+
+        console.log("FUNC P:", params)
+
+        outputCode.text.push(`${_name}:`, `swap_stack`)
+
+        var finalParams = asm.handleParamsNew(_name, params)
+        //throwE(typeStack)
+        var returnType = popTypeStack()
+        userFunctions[_name] = {
+            name: _name,
+            parameters: finalParams,
+            returnType
+        }
+        requestBracketStack = {
+            type: "function",
+            data: {
+                name: _name
+            }
+        }
+    },
+    createFunctionOld: function (_name, params) { // no stack variables
         console.log("FUNC P:", params)
         var finalParams = [];
 
@@ -324,7 +356,7 @@ module.exports = {
     },
     createInitializer: function (_name, params) {
         outputCode.text.push(asm.formatInitializer(_name) + ":", `swap_stack`)
-        var finalParams = asm.handleParams(_name, params.reverse())
+        var finalParams = asm.handleParamsNew(_name, params)
         var returnType = defines.types[_name]
         userInits[_name] = {
             name: _name,
@@ -340,7 +372,7 @@ module.exports = {
     },
     createMethod: function (struct_name, method_name, params, returnType) {
         outputCode.text.push(asm.formatMethod(method_name, struct_name) + ":", `swap_stack`)
-        var finalParams = asm.handleParams(struct_name, params)
+        var finalParams = asm.handleParamsNew(struct_name, params)
         formatMethods[struct_name][method_name] = {
             params, returnType
         }
@@ -456,7 +488,9 @@ module.exports = {
         if (localsIncludes(name)) {
             name = asm.formatLocal(name);
         }
-
+        if (this.isOnStack(name)) {
+            this.readStackVariable(name)
+        }
         var restIndex = -1;
         //throwE(restOfLine)
         if (restOfLine[0] == ".") {
@@ -675,16 +709,14 @@ module.exports = {
             `mov %ebx, (%eax, %ecx, 4)`,
             `incl ${oldSize}`
         )
-        if(this.isOnStack(oldSize))
-        {
+        if (this.isOnStack(oldSize)) {
             this.loadStackVariable(oldSize, 0, oldSize)
         }
-            outputCode.text.push(
-                `# --- array load end ---`
-            )
+        outputCode.text.push(
+            `# --- array load end ---`
+        )
     },
-    isOnStack: function(_name)
-    {
+    isOnStack: function (_name) {
         return Object.keys(variablesOnStack).includes(_name)
     }
 }

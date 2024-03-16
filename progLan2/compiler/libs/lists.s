@@ -1,9 +1,8 @@
 .data
-
+// note: DO NOT USE PUSHA. CANNOT PUSH EBP AS WE NEED THE OFFSET
 .text
 
 realloc: # for user
-    pusha
     swap_stack
     pop %edx # new size (bytes)
     pop %ecx # old size (bytes)
@@ -21,12 +20,8 @@ realloc: # for user
     // todo: free old space
 
     swap_stack
-    popa
 
 realloc_rapid: # for list reallocation - copies 4 bytes one by one
-    
-    push %ebp
-
     swap_stack
     pop %edi # old size, newSize = old + 1
     pop %esi # buffer
@@ -72,8 +67,5 @@ realloc_rapid: # for list reallocation - copies 4 bytes one by one
     popl __return_32__ # return address
     
     swap_stack
-    
-    pop %ebp
-    
-    //add $8, %ebp 
     ret
+    
