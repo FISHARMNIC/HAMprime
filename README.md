@@ -2,7 +2,7 @@
 
 A 32bit compiled programming language that runs on Linux
 
-# What makes it unique?
+# What makes it unique / Why use it?
 * "Simple but complex"
   * incorporating the use of low-level memory access: Pointers and manual allocation
   * High-level operations typeless arrays and automatic re-allocation
@@ -12,6 +12,10 @@ A 32bit compiled programming language that runs on Linux
   * HAM` compiler generates 32-bit x86 assembly (using GNU assembler)
 * Integration with C functions like printf and scanf
 * Very easy to incorporate assembly
+* Speed of C
+  * Tested by printing the result of 1000 floating point operations 
+  * <img width="600" alt="Screen Shot 2024-03-17 at 1 42 33 PM" src="https://github.com/FISHARMNIC/HAMprime/assets/73864341/b7864d62-e86b-43ae-b65c-cff7a70014ab">
+
 
 # Currently working
 * Variables
