@@ -1,4 +1,4 @@
-# <img width="50" alt="Screen Shot 2024-02-10 at 9 33 08 AM" src="https://github.com/FISHARMNIC/proglan2/assets/73864341/9a5327b9-ffcc-425a-b927-ad829415715b"> Proglan aka Ham` 
+# <img width="50" alt="Screen Shot 2024-02-10 at 9 33 08 AM" src="https://github.com/FISHARMNIC/proglan2/assets/73864341/9a5327b9-ffcc-425a-b927-ad829415715b"> HAM` (aka proglan)
 
 A 32bit compiled programming language that runs on Linux
 
