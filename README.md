@@ -5,8 +5,8 @@ A 32bit compiled programming language that runs on Linux
 # What makes it unique / Why use it?
 * "Simple but complex"
   * incorporating the use of low-level memory access: Pointers and manual allocation
-  * High-level operations typeless arrays and automatic re-allocation
-* Combining the function-based ideolgy of C, and objects from Java
+  * High-level operations like typeless arrays and automatic re-allocation
+* Combining the function-based ideology of C, and objects from Java
   * See `formats`, and how they can act as both structures and classes
 * Fully compiled language
   * HAM` compiler generates 32-bit x86 assembly (using GNU assembler)
@@ -39,13 +39,10 @@ A 32bit compiled programming language that runs on Linux
 * Fix command line args
 * HAM` include (currently only assembly)
 * Multi-dimensional arrays
-* Parameter in register or return in register
+* Register as parameter or return in register
 * Forward declaration
-* Static properties
+* Static and private properties
 * Much more... (see in `main.js`)
-
-### Currently Working On
-* Making the transition to stack based variables for locals and parameters
 
 # Docs [link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
 
