@@ -1,0 +1,5 @@
+.text
+
+main:
+    
+    ret

@@ -1,7 +1,5 @@
 lists required;
 
-create myArr <- {8,9,10};
-
 entry function<> -> u32
 {
     create myList <- inf{1,2,3,4,5,6};

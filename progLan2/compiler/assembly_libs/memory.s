@@ -29,6 +29,14 @@ free:
     popa
     ret
 
+# meant for freeing several blocks. Does not save/restore registers
+.macro free_rapid addr, len
+    mov $\()\len, %ecx
+    mov \addr, %ebx
+    mov $91, %eax # munmap
+    int $0x80
+.endm
+
 malloc:
     pusha
     call __allocate__ # already in call stack

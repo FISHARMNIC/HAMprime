@@ -6,14 +6,11 @@ synopsis:
 
 all floats are stored normally until needed to be used by FPU
 
-fld: floating point sent to fpu stack
-fild: int sent to fpu stack
-fst: fpu stack sent to ram
 */
 
 module.exports = function (arr) {
     //throwE(typeStack)
-    console.log("FLOAT MATH ON", arr)
+    debugPrint("FLOAT MATH ON", arr)
     var scanPos = 0;
     var current = arr[scanPos]
     var mathType = defines.types.u32

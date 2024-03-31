@@ -15,6 +15,7 @@
 - [NEW] Add static properties
 - [NEW] Make all dynam. allocated things freed at the end of the function. If you add a keyword "keep" then it is not freed
 
+- [HIGH] "variablesOnStack" is never cleared. Should I? Check if compiler prioritizes stack vars
 - [HIGH] Math not working on minus sign. See factorial.x: MATH ON [ '_loc_factorial_number' ] should include - 1
 - [HIGH] Make sure initializers and methods use asm.handleParamsNew
 - [HIGH] Lists cannot be passed as params
@@ -36,6 +37,7 @@
 - [LOW] Maybe change it so that instead having to realloc "this" for each method and init, just have one "this" var dedicated to each format?
 - [LOW] Should I be closing inscope upon "}"? Look at elif for function not setting inscope to null
 - [LOW] Switch class intiators to be called with paren. instead: Car(1,2,3) vs Car<1,2,3>
+- [LOW] Make switch to 64bit
 */
 
 const fs = require("fs");
@@ -53,23 +55,29 @@ globalThis.outputCode = { // object with out data
     }
 }
 
-globalThis.includedAssemblyFiles = []; // Array  : assembly files included by uses
-globalThis.formats = {};               // Object : {format names: properties}
-globalThis.userInits = {}              // Object : {format inits: properties}
-globalThis.formatMethods = {};         // Object : {format methods: properties}
+globalThis.includedAssemblyFiles = []; // Array  : [dir,...]                         : assembly files included by uses
+globalThis.formats = {};               // Object : {format names: properties,...}   : 
+globalThis.userInits = {}              // Object : {format init: properties,...}    : 
+globalThis.formatMethods = {};         // Object : {format method: properties,...}  : 
 globalThis.oldThisType = [];           // ??
-globalThis.requestBracketStack = 0;    // Var    : Used for anything that needs a bracket on the next line
-globalThis.bracketStack = [];          // Stack  : All data about currently nested brackets
-globalThis.typeStack = [];             // Stack  : Recent types compiler looked over
-globalThis.lastArrInfo = 0;            // Var    : ?? Size of allocated lists
-globalThis.inscope = 0;                // Var    : Current function information
-globalThis.currentStackOffset = 0;     // Var    : Stack offset for stack allocated variables
+globalThis.requestBracketStack = 0;    // Var                                       : Used for anything that needs a bracket on the next line
+globalThis.bracketStack = [];          // Stack  : [{info},...]                     : All data about currently nested brackets
+globalThis.typeStack = [];             // Stack  : [type,...]                       : Recent types compiler looked over
+globalThis.lastArrInfo = 0;            // Var                                       : ?? Size of allocated lists
+globalThis.inscope = 0;                // Var                                       : Current function information
+globalThis.currentStackOffset = 0;     // Var                                       : Stack offset for stack allocated variables
 globalThis.freedData = [];             // -- Unused -- (to delete)
-globalThis.mostRecentIfStatement = []  // Stack? : For elifs 
-globalThis.globalInd = 0               // Var    : Current line that the compiler is looking at 
+globalThis.mostRecentIfStatement = []  // Stack?                                    : For elifs 
+globalThis.globalInd = 0               // Var                                       : Current line that the compiler is looking at 
 globalThis.userMacros = {}             // ??
-globalThis.userListInitLengths = {}    // Object : Declaration lengths of lists. Set to -1 if they were set to 0, and have already been allocated
-globalThis.variablesOnStack = {}       // Object: {name: offset, ...}
+globalThis.userListInitLengths = {}    // Object                                    : Declaration lengths of lists. Set to -1 if they were set to 0, and have already been allocated
+globalThis.variablesOnStack = {}       // Object : {name: offset, ...}              : All variables currently in stack (reset after end of scope)
+globalThis.localDynaMem = {};          // Object : {label: {sizeBytes, persistent}  : All labels that were dyn. alloc  (reset after end of scope)
+globalThis.localDynaMemInLine = []     // Array  : [localDynaMem entry]             : All data allocated dynamically (reset after each line)
+globalThis.usePersistanceByDef = true;
+globalThis.debugPrint = function () {
+    console.log("\033[92m[DEBUG]\033[0m", ("\033[96m" + (debugPrint.caller.name || "*unkown caller*") + "\033[0m").padEnd(32), ...arguments);
+}
 
 globalThis.parser = require("./splitter.js"); // parser
 globalThis.defines = require("./defines.js"); // variables like types
@@ -77,6 +85,7 @@ globalThis.asm = require("./asmHelpers.js");
 globalThis.actions = require("./actions.js"); // important functions that translate into assembly
 globalThis.mathEngine = require("./mathEngine.js");
 globalThis.floatEngine = require("./floatEngine.js");
+globalThis.optimiser = require("./optimise.js");
 
 globalThis.userVariables = {           // Object : {variable name: type}
     __return_8__: defines.types.i8,
@@ -110,6 +119,11 @@ globalThis.userFunctions = {           // Object : {function name: {func name, p
     },
     "put_float": {
         name: 'put_float',
+        parameters: [{ name: "number", type: defines.types.f32 }],
+        returnType: defines.types.u32
+    },
+    "put_floatln": {
+        name: 'put_floatln',
         parameters: [{ name: "number", type: defines.types.f32 }],
         returnType: defines.types.u32
     },
@@ -178,6 +192,8 @@ globalThis.functionMacros = {          // Todo, maybe delete actually
     }
 }
 
+// important functions
+
 globalThis.objCopy = function (x) {
     return JSON.parse(JSON.stringify(x))
 }
@@ -198,36 +214,30 @@ globalThis.popTypeStack = function () {
     return typeStack.pop()
 }
 //taken from: https://stackoverflow.com/questions/65538406/convert-javascript-number-to-float-single-precision-ieee-754-and-receive-integ
-globalThis.jsF64ToF32IntegerBitsStr = function (double) {
-    // float / f32 has 32 bit => 4 bytes
-    const BYTES = 4;
-    // Buffer is like a raw view into memory
-    const buffer = new ArrayBuffer(BYTES);
-    // Float32Array: interpret bytes in the memory as f32 (IEEE-754) bits
+globalThis.doubleToInt = function (double) {
+    const buffer = new ArrayBuffer(4);
     const float32Arr = new Float32Array(buffer);
-    // UInt32Array: interpret bytes in the memory as unsigned integer bits.
-    // Important that we use unsigned here, otherwise the MSB would be interpreted as sign
     const uint32Array = new Uint32Array(buffer);
-    // will convert double to float during assignment
-    float32Arr[0] = double;
-    // now read the same memory as unsigned integer value
-    const integerValue = uint32Array[0];
 
-    return integerValue;
+    float32Arr[0] = double;
+    return uint32Array[0];
 }
 globalThis.methodExists = function (n) {
     return Object.values(formatMethods).map(x => Object.keys(x)).flat().includes(n)
 }
 
+// program entry
 start()
-
 function start() {
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/formatAsParam.x"
+
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/recursiveSum.x"
-    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lists/list.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/keep.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/functions/function.x"
-    
+
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
@@ -236,6 +246,7 @@ function start() {
 
 // Compiles a single line
 function compileLine(line) {
+    localDynaMemInLine = [];
     var requestMathFlag = false;
 
     if (line[0] == "while") {
@@ -263,6 +274,7 @@ function compileLine(line) {
         var offsetWord = x => wordNum + x >= 0 ? line[wordNum + x] : null;
         var replaceCurrentWith = x => { line[wordNum] = x; };
         //console.log("------", offsetWord(-1))
+
         if (word == "DEFINED") {
             userMacros[offsetWord(1)] = offsetWord(-1)
         }
@@ -272,6 +284,15 @@ function compileLine(line) {
         }
         else if (word == "required") {
             includedAssemblyFiles.push(__dirname + "/libs/" + line.slice(0, line.length - 1).join("") + ".s")
+        }
+        else if (word == "defualtPersistace")
+        {
+            if(offsetWord(1) == "true" || offsetWord(1) == "1")
+            {
+                usePersistanceByDef = true;
+            } else {
+                usePersistanceByDef = false;
+            }
         }
         else if (word == "f") { //float
             var splice_extra = 0;
@@ -283,7 +304,7 @@ function compileLine(line) {
                         splice_extra = 1
                     }
                 }
-                line[wordNum - 3 - splice_extra] = jsF64ToF32IntegerBitsStr(parseFloat(offsetWord(-3) + offsetWord(-2) + offsetWord(-1)))
+                line[wordNum - 3 - splice_extra] = doubleToInt(parseFloat(offsetWord(-3) + offsetWord(-2) + offsetWord(-1)))
                 line.splice(wordNum - 2 - splice_extra, 3 + splice_extra);
                 wordNum -= 3 + splice_extra;
                 typeStack.push(defines.types.f32)
@@ -408,7 +429,7 @@ function compileLine(line) {
                     typeStack.push(userVariables[lbl])
                 } else { // special type 
                     var area = captureUntil(line, wordNum + 1, ">")
-                    console.log("SPECIAL CAST", word, area)
+                    //debugPrint("SPECIAL CAST", word, area)
                     //throwE(defines.types)
                     if (word == "function") { // if function
                         actions.createFunctionNew(offsetWord(-1), area)
@@ -420,22 +441,32 @@ function compileLine(line) {
                     } else if (word == "method") {
                         actions.createMethod(offsetWord(-2,), offsetWord(-1), area, popTypeStack())
                     } else { // if format
-                        console.log("---------> ", word, area)
+                        //console.log("---------> ", word, area)
                         var lbl = actions.reserveFormat(word, area)
 
-                        if (lbl == -1) // initializer
+                        if (lbl == -1) // IF IS INIT.
                         {
                             line[wordNum] = formatReturn(defines.types.u32);
 
                             line.splice(wordNum + 1, area.length + 2)
                             typeStack.push(defines.types[word])
 
+                            var totSize = 0;
+                            formats[word].forEach(x => { totSize += asm.typeToBits(x.type) })
+                            var lbl = actions.mallocDynaMemHelper(totSize / 8);
+                            outputCode.text.push(
+                                `mov ${line[wordNum]}, %eax`,
+                                `mov %eax, 0(%esp)`
+                            )
+
+
+
                             //wordNum -= 1
                             //throwE("}}}}} NOW AT", line, wordNum)
                         } else {
                             line[wordNum] = lbl
                             line.splice(wordNum + 1, area.length + 2)
-                            console.log("====================>", word, defines.types[word])
+                            //console.log("====================>", word, defines.types[word])
                             typeStack.push(defines.types[word])
                         }
                     }
@@ -553,7 +584,7 @@ function compileLine(line) {
             if (ident.type == "format") { // if in format definition
                 var pname = offsetWord(-1)
                 var ptype = popTypeStack();
-                console.log(`   - format:${ident.data.name} property[${pname}] type{${ptype.size}:${ptype.pointer}}`)
+                //console.log(`   - format:${ident.data.name} property[${pname}] type{${ptype.size}:${ptype.pointer}}`)
                 //console.log(defines.types.Price.templatePtr)
                 ident.data.properties.push({ name: pname, type: ptype })
                 break;
@@ -570,12 +601,14 @@ function compileLine(line) {
                 break;
             }
 
-            if (Object.keys(variablesOnStack).includes(formatIfLocal(offsetWord(-1))))
-            {
+            if (Object.keys(variablesOnStack).includes(formatIfLocal(offsetWord(-1)))) {
                 //throwE()
                 actions.loadStackVariable(formatIfLocal(offsetWord(-1)), popTypeStack(), offsetWord(1))
                 break;
             }
+
+
+
             // todo: rewrite this ifelse below to use formatIfLocal
             if (Object.keys(userVariables).includes(offsetWord(-1))) // already defined variables
             {
@@ -593,8 +626,10 @@ function compileLine(line) {
                 // }
 
                 if (offsetWord(-2) == "_stack_") {
+                    //throwE(line)
                     actions.createStackVariable(offsetWord(-1), type, nextWord)
                 } else {
+                    //throwE(line)
                     actions.createVariable(offsetWord(-1), type, nextWord)
                 }
             }
@@ -607,7 +642,7 @@ function compileLine(line) {
         }
         else if (word == "{") {
             if (requestBracketStack == 0) { // array init 
-                console.log("--Treating array initiation--")
+                //console.log("--Treating array initiation--")
                 var area = captureUntil(line, wordNum, "}").filter(x => x != ",");
 
                 var isList = offsetWord(-1) == "inf"; // is a list as opposed to an array
@@ -632,6 +667,7 @@ function compileLine(line) {
                     wordNum--;
                 }
                 //throwE(line)
+                //throwE(line)
             }
             var data = requestBracketStack.data
             if (requestBracketStack.type == "function") {
@@ -644,28 +680,24 @@ function compileLine(line) {
             } else if (requestBracketStack.type == "while") {
                 bracketStack.push(objCopy(requestBracketStack))
             } else if (requestBracketStack.type == "initializer") {
+                // already in dec
                 bracketStack.push(objCopy(requestBracketStack))
 
                 oldThisType.push(objCopy(userVariables["this"]))
                 userVariables["this"] = defines.types[data.name] // re-type "this"
-                inscope = userInits[data.name]
+                inscope = userInits[data.name] // enter scope of init.
+
                 //console.log("=+=======+= STACK RESET initializer")
                 //currentStackOffset = 0
                 // NOTE, MODELNUMBER NOT BEING TAKEN AS LOCAL!!! SEE ASM
-                var label = actions.requestTempLabel(defines.types.u32)
-                var totSize = 0;
+                //var label = actions.requestTempLabel(defines.types.u32)
 
+                var totSize = 0;
                 formats[data.name].forEach(x => { totSize += asm.typeToBits(x.type) })
 
-                outputCode.text.push( // allocate for "this"
-                    //`pushl this`,
-                    `pushl \$${totSize / 8}`,
-                    `swap_stack`,
-                    `call __allocate__`,
-                    `swap_stack`,
-                    `push %eax`
-                )
+                actions.mallocSize(totSize / 8, true); // allocate for "this". "true" tells it to not free
 
+                outputCode.text.push("push %eax");
                 actions.allocateExistingStackVarNoPush("this")
 
                 //throwE(outputCode.text)
@@ -695,24 +727,25 @@ function compileLine(line) {
             if (data.type == "function") {
                 var fnInfo = userFunctions[data.data.name]
 
-                actions.clearStackVariables();
+                actions.clearAllLocalData();
 
                 outputCode.text.push(
                     "swap_stack",
                     "ret")
+                inscope = 0;
             }
             else if (data.type == "format") {
                 var _name = data.data.name
                 var properties = data.data.properties
 
-                console.log("========CLOSING FORMAT DEFINITION========", properties.map(x => x.type.templatePtr))
+                debugPrint("CLOSING FORMAT DEFINITION", properties.map(x => x.type.templatePtr))
                 formats[_name] = objCopy(properties);
                 formatMethods[_name] = {};
                 var fmt = objCopy(defines.types.___format_template___);
                 fmt.templatePtr = formats[_name];
                 fmt.fmt_name = _name
                 defines.types[_name] = fmt; // push fmt as new type
-                console.log("***********************>", _name, defines.types[_name])
+                debugPrint(_name, defines.types[_name])
             }
             else if (data.type == "if") {
                 var properties = data.data.properties
@@ -736,26 +769,29 @@ function compileLine(line) {
                 )
             }
             else if (data.type == "initializer") {
-                
+
                 actions.readStackVariable("this")
                 outputCode.text.push(
                     `mov this, %eax`,
                     `mov %eax, __return_32__`
-                    )
-                actions.clearStackVariables();
-                
+                )
+
+                actions.clearAllLocalData();
+
                 outputCode.text.push(
                     "swap_stack",
                     "ret")
                 userVariables["This"] = oldThisType.pop()
+                inscope = 0;
             }
             else if (data.type == "method") {
-                actions.clearStackVariables();
+                actions.clearAllLocalData();
                 outputCode.text.push("swap_stack", "ret")
+                inscope = 0;
             }
         }
         else if (word == "format") {
-            console.log("CREATING FORMATTER", offsetWord(-1))
+            debugPrint("CREATING FORMATTER", offsetWord(-1))
             var _name = offsetWord(-1)
             requestBracketStack = {
                 type: "format",
@@ -834,8 +870,7 @@ function compileLine(line) {
             var left = actions.formatIfConstantOrLiteral(word)
             var right = actions.formatIfConstantOrLiteral(offsetWord(2))
 
-
-            if (tleft != tright) {
+            if (!actions.objectCompare(tleft, tright)) {
                 throwW(`[COMPILER] comparing unequal types: `, tleft, " and ", tright)
             }
 
@@ -895,7 +930,7 @@ function compileLine(line) {
         //     }
         // }
     }
-    console.log("2) MODIFIED:", line.join(" "));
+    //console.log(" 2) MODIFIED:", line.join(" "));
 }
 
 function previewNextLine() {
@@ -906,11 +941,43 @@ function compileMultiple(lines) {
         globalInd = ind
         x = parser.split(x)
         console.log("1) COMPILING:", x.join(" "))
+
+        var forceP = false
+        if (x.includes("persistent")) {
+            forceP = true;
+            x.splice(x.indexOf("persistent"), 1);
+        } else if (x.includes("transient")) {
+            forceP = true;
+            x.splice(x.indexOf("transient"), 1);
+        }
+        
         compileLine(x)
+
+        if(forceP) {
+        localDynaMemInLine.forEach(n => {
+            n.persistent = !usePersistanceByDef;
+        })
+        debugPrint("SETTING PERSISTENTS", localDynaMem)
+    }
+
+        Object.entries(actions.currentLabels).forEach(x => {
+            var key = x[0]
+            var val = x[1]
+            if (val > actions.maxLabels[key]) {
+                actions.maxLabels[key] = val
+            }
+            actions.currentLabels[key] = 0;
+        })
     }
     )
     actions.done_generateTempLabels();
-    fs.writeFileSync(__dirname + "/compiled/out.s", parser.parseFinalCode())
+    var out = parser.parseFinalCode()
+    fs.writeFileSync(__dirname + "/compiled/out.s", out)
+    console.log("******************** COMPILATION SUCCESSFULL ********************")
+    console.log("-- assembly in    '/compiled/out.s'")
+    console.log("-- assemble using 'gcc out.s -o out -g -no-pie -m32 -fno-asynchronous-unwind-tables'")
+    //optimiser(outputCode.text);
+    //console.log(outputCode.text)
 }
 
 function brackStackOffsetFromEnd(off = 1) {
@@ -934,7 +1001,7 @@ function localsIncludes(word) {
 }
 
 function formatIfLocal(word) {
-    if(localsIncludes(word))
+    if (localsIncludes(word))
         return asm.formatLocal(word);
     return word
 }

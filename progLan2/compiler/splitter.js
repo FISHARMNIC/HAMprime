@@ -103,7 +103,7 @@ function split(line) {
 
 function parseFinalCode()
 {
-    console.log(outputCode)
+    //console.log(outputCode)
     return(
 `
 .1byte = .byte

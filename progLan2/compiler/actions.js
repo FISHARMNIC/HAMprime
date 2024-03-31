@@ -6,10 +6,17 @@ var genLabelCounter = 0;
 module.exports = {
     maxLabels: {
         "8": 0,
+        "8": 0,
         "16": 0,
         "32": 0
     },
     currentLabels: {
+        "0": 0,
+        "8": 0,
+        "16": 0,
+        "32": 0
+    },
+    globalLabels: {
         "0": 0,
         "8": 0,
         "16": 0,
@@ -27,16 +34,35 @@ module.exports = {
         this.currentLabels[String(bits)]++;
         return ret
     },
+    requestPersistentLabel: function (type) {
+        var bits = asm.typeToBits(type)
+        var ret = `__GLOB${bits}_${this.globalLabels[String(bits)]}__`
+        var modified = objCopy(type);
+        modified.dblRef = true;
+        userVariables[ret] = modified;
+        this.globalLabels[String(bits)]++;
+        //console.log(ret)
+        return ret
+    },
     done_generateTempLabels: function () {
-        // finish up later, too lazy now, supposed to use max
-        for (var i = 0; i < this.currentLabels["0"]; i++)
+        debugPrint("Generating temporary labels", this.maxLabels)
+        for (var i = 0; i < this.maxLabels["0"]; i++)
             outputCode.data.push(`__TEMP0_${i}__: .4byte 0 # for format deref`)
-        for (var i = 0; i < this.currentLabels["8"]; i++)
+        for (var i = 0; i < this.maxLabels["8"]; i++)
             outputCode.data.push(`__TEMP8_${i}__: .byte 0 `)
-        for (var i = 0; i < this.currentLabels["16"]; i++)
+        for (var i = 0; i < this.maxLabels["16"]; i++)
             outputCode.data.push(`__TEMP16_${i}__: .2byte 0 `)
-        for (var i = 0; i < this.currentLabels["32"]; i++)
+        for (var i = 0; i < this.maxLabels["32"]; i++)
             outputCode.data.push(`__TEMP32_${i}__: .4byte 0 `)
+
+        for (var i = 0; i < this.globalLabels["0"]; i++)
+            outputCode.data.push(`__GLOB0_${i}__: .4byte 0 # for format deref`)
+        for (var i = 0; i < this.globalLabels["8"]; i++)
+            outputCode.data.push(`__GLOB8_${i}__: .byte 0 `)
+        for (var i = 0; i < this.globalLabels["16"]; i++)
+            outputCode.data.push(`__GLOB16_${i}__: .2byte 0 `)
+        for (var i = 0; i < this.globalLabels["32"]; i++)
+            outputCode.data.push(`__GLOB32_${i}__: .4byte 0 `)
     },
     literalLabel: function () {
         return `_compLITERAL${genLabelCounter++}`;
@@ -97,9 +123,10 @@ module.exports = {
             this.loadVariable(_name, type, value)
         }
     },
-    createStackVariable: function (_name, type, value) {
+    createStackVariable: function (_name, type, value, calledByDyna = false) {
         // outputCode.data.push(`${_name}: ${asm.typeToAsm(type)} 0`)
         // userVariables[_name] = objCopy(type)
+        //throwE(_name)
         this.createVariable(_name, type, value, false, true)
 
         var reg = asm.formatRegister("a", type)
@@ -109,14 +136,14 @@ module.exports = {
         )
         this.allocateExistingStackVarNoPush(_name)
 
-        console.log("~~~~~~~~~~ Changing current stack offset. Now is:", currentStackOffset)
-        if (lastArrInfo.isList) {
+        debugPrint("Changing current stack offset. Now is:", currentStackOffset, _name)
+        if (lastArrInfo.isList && !calledByDyna) {
             outputCode.text.push(
                 `mov ${asm.formatListSizeVar(_name)}, ${reg}`,
                 `pushl %eax`
             )
             this.allocateExistingStackVarNoPush(asm.formatListSizeVar(_name))
-            console.log("~~~~~~~~~~ Changing current stack offset. Now is:", currentStackOffset)
+            debugPrint("~~~~~~~~~~ Changing current stack offset. Now is:", currentStackOffset)
         }
     },
     allocateExistingStackVarNoPush: function (_name) {
@@ -139,15 +166,40 @@ module.exports = {
             currentStackOffset = 0;
         }
     },
+    clearAllLocalData: function()
+    {
+        var ob = [];
+        Object.entries(localDynaMem).forEach(x => {
+            var key = x[0]
+            var val = x[1]
+            if(!val.persistent)
+            {
+                debugPrint("FREEING TRANSIENT", key);
+                //ob.push(`free_rapid ${key}, ${val.sizeBytes}`)
+                ob.push(`free_rapid ${this.getStackOffset(key)}(%esp), ${val.sizeBytes}`)
+            }
+        })
+        if(ob.length != 0)
+        {
+            outputCode.text.push(
+                `push %ebp`,
+                ...ob,
+                `pop %ebp`
+            )
+        }
+        localDynaMem = {};
+        this.clearStackVariables();
+    },
     getStackOffset: function (_name) {
-        console.log("@@@~~~~~~~ Offset for", _name, variablesOnStack[_name], "stack set to:", currentStackOffset, "->", currentStackOffset - 4 - variablesOnStack[_name])
+        debugPrint("Offset for", _name, variablesOnStack[_name], "stack set to:", currentStackOffset, "->", currentStackOffset - 4 - variablesOnStack[_name])
         if (_name == "counter") {
             //throwE(variablesOnStack, currentStackOffset) // should be offsetting 20. 8 bytes off. Something is wrong
         }
         return currentStackOffset - 4 - variablesOnStack[_name]
     },
     createVariable: function (_name, type, value, asParam = false, dummy = false) {
-        //throwE("CREATING", _name, type)
+        //throwE(_name, value, type)
+        debugPrint(_name, value)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
 
         if (Object.keys(userVariables).includes(_name) || localsIncludes(_name)) {
@@ -161,7 +213,7 @@ module.exports = {
         else if (type.special) {
             // TODO: special
             outputCode.data.push(`${_name}: .4byte 0`)
-            // console.log("BOBBBBBBBB", value, _name, type.templatePtr.type.templatePtr)
+            // debugPrint("BOBBBBBBBB", value, _name, type.templatePtr.type.templatePtr)
             var obuff = bracketStack.length == 0 ? outputCode.init : outputCode.text;
             obuff.push(
                 `mov ${value}, %edx`,
@@ -173,12 +225,12 @@ module.exports = {
             userVariables[_name] = objCopy(type); // assign type to variable
             if (parseFloat(value) == value && inscope == 0) // constant number
             {
-                out += value
+                out += value // 123 abc HERE THIS IS NOT RESETING VAR IN FN?
             } else {
                 out += '0'
 
                 if (!dummy) {
-                    if (type.dblRef) {
+                    if (!type.dblRef && parseFloat(value) != value) {
                         this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
                     } else {
                         this.twoStepLoadConst("auto", _name, value, type)
@@ -259,7 +311,7 @@ module.exports = {
     },
     createFunctionNew: function (_name, params) {
 
-        console.log("FUNC P:", params)
+        debugPrint("FUNC P:", params)
 
         outputCode.text.push(`${_name}:`, `swap_stack`)
 
@@ -279,7 +331,7 @@ module.exports = {
         }
     },
     createFunctionOld: function (_name, params) { // no stack variables
-        console.log("FUNC P:", params)
+        debugPrint("FUNC P:", params)
         var finalParams = [];
 
         outputCode.text.push(`${_name}:`, `swap_stack`)
@@ -322,7 +374,7 @@ module.exports = {
             //throwE(params, ind)
             // if(userFunctions[_name] != undefined && userFunctions[_name].parameters[ind] != undefined && userFunctions[_name].parameters[ind].type.float && (parseFloat(x) == x))
             // {
-            //     x = jsF64ToF32IntegerBitsStr(x);
+            //     x = doubleToInt(x);
             // }
             outputCode.text.push(`pushl ${this.formatIfConstantOrLiteral(x)}`)
         })
@@ -384,21 +436,55 @@ module.exports = {
             }
         }
         //defines[struct_name].methods.push()
-        //console.log()
+        //debugPrint()
         //throwW("WIP METHODS", Object.values(formatMethods).map(x => Object.keys(x)).flat())
 
     },
-    dynamicallyAllocate(sizeBytes, data = []) {
-        var label = this.requestTempLabel(defines.types.u32)
+    mallocToStack(sizeBytes) {
+        // no freeing required, in stack
         outputCode.text.push(
-            `# ------ begin dynamic alloc ------`,
+            `pushl \$${sizeBytes}`,
+            `swap_stack`,
+            `call __allocate__`,
+            `swap_stack`,
+            `push %eax`
+        )
+    },
+    mallocDynaMemHelper(sizeBytes, persistent = '0')
+    {
+        if(persistent == '0')
+        {
+            persistent = usePersistanceByDef;
+        }
+        var label = this.untypedLabel(); // del
+        this.createStackVariable(label, defines.types.u32, 0, true); // del
+        localDynaMem[label] = {sizeBytes, persistent};
+        localDynaMemInLine.push(localDynaMem[label]);
+        return label 
+    },
+    mallocSize(sizeBytes, persistent = '0') {
+
+        var label = this.mallocDynaMemHelper(sizeBytes, persistent);
+
+        //var label = this.requestPersistentLabel(defines.types.u32) // todo: use stack instead
+        outputCode.text.push(
+            `# ------ begin malloc ------`,
             `pushl \$${sizeBytes}`,
             `swap_stack`,
             `call __allocate__`,
             `mov %eax, ${label}`,
             `swap_stack`,
+            `mov %eax, (%esp)`, // del
+            `# ------ end malloc --------`,
         )
+        
+        debugPrint(`allocated ${sizeBytes} bytes under label ${label}`)
+        return label
+    },
+    dynamicallyAllocate(sizeBytes, data = []) {
+        var label = this.mallocSize(sizeBytes)
         var offset = 0;
+        outputCode.text.push(`# ------- begin dynamic alloc and load -------`)
         if (data.length != 0) {
             data.forEach(x => {
                 var reg = asm.formatRegister('d', x.type)
@@ -419,7 +505,7 @@ module.exports = {
                 offset += parseFloat(asm.typeToBits(x.type))
             })
         }
-        outputCode.text.push(`# ------- end dynamic alloc -------`)
+        outputCode.text.push(`# ------- end dynamic alloc and load ---------`)
         return label
     },
     reserveFormat(fmt, args) {
@@ -440,21 +526,12 @@ module.exports = {
                 // todo: move data into sturcture
                 throwE("TOP LEVEL FORMATS NOT IMPLEMENTED")
             } else { //must be dynamically allocated in runtime
-                // todo: rewrite to use "dynamicallyAllocate()"
-                var label = this.requestTempLabel(defines.types.u32)
                 var totSize = 0;
                 formats[fmt].forEach(x => { totSize += asm.typeToBits(x.type) })
-                outputCode.text.push( // allocate size and load pointer
-                    `# ------ begin format alloc ------`,
-                    `pushl \$${totSize / 8}`,
-                    `swap_stack`,
-                    `call __allocate__`,
-                    `mov %eax, ${label}`,
-                    `swap_stack`,
-                )
+                var label = this.mallocSize(totSize / 8)
                 var offset = 0;
                 formats[fmt].forEach(x => {
-                    console.log("*************USINGGGGGGGG *****", x)
+                    //debugPrint("*************USINGGGGGGGG *****", x)
                     var reg = asm.formatRegister('d', x.type)
                     outputCode.text.push(`add \$${offset / 8}, %eax`)
                     if (parseFloat(passed[x.name]) == passed[x.name]) { //constant
@@ -480,8 +557,8 @@ module.exports = {
             return -1
             //throwE(res) // todo: un-labeled passing. ex. car<"bob",123> (not no use of ":")
         }
-        //console.log("   - PASSED", passed)
-        //console.log(`   - USING ${fmt}`)//, formats[fmt] returns array of objects {name,type}
+        //debugPrint("   - PASSED", passed)
+        //debugPrint(`   - USING ${fmt}`)//, formats[fmt] returns array of objects {name,type}
 
     },
     getFormatPropertyNew(name, restOfLine = [], returnAddr = false) {
@@ -647,7 +724,7 @@ module.exports = {
             contents.forEach(x => {
                 outputCode.data.push(`.4byte ${x.value}`)
             })
-            typeStack.push(defines.types.p32);
+            typeStack.push(defines.types.t32);
             return lbl
         } else {
             // todo: check if array is clamped to size
@@ -722,16 +799,16 @@ module.exports = {
 }
 
 function localsIncludes(word) {
-    //console.log("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
+    //debugPrint("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
     return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
 }
 
 function searchFormatForProperty(fmt, property) {
     var index = -1;
     var sum = 0;
-    console.log("@@@@@@ scanning @@@@@@", fmt)
+    //debugPrint("@@@@@@ scanning @@@@@@", fmt)
     fmt.templatePtr.every((x, i) => {
-        console.log(i)
+        //debugPrint(i)
         if (x.name == property) {
             index = i;
             return false

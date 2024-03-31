@@ -30,7 +30,7 @@ module.exports = {
         }
     },
     sizeToSuffix: function (x) {
-        console.log(x)
+        //console.log(x)
         var t = this.typeToBits(x)
         if(t == 32) return 'l'
         if(t == 16) return 'w'
@@ -65,7 +65,7 @@ module.exports = {
         }
     },
     handleParamsNew(_name, params) {
-        console.log("=+=======+= STACK RESET ")
+        debugPrint("STACK RESET")
         currentStackOffset = 0;
 
         var finalParams = [];

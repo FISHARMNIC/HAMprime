@@ -18,6 +18,7 @@ PRINTF_INT32: .asciz "%i"
 PRINTF_STRING: .asciz "%s"
 PRINTF_NEWL: .asciz "\n"
 PRINTF_FLOAT: .asciz "%f"
+PRINTF_FLOAT_NL: .asciz "%f\n"
 .text
 /*
 push <buffer>
@@ -88,6 +89,20 @@ put_float:
     sub $16, %esp
     movdqu %xmm2, (%esp)
     push $PRINTF_FLOAT
+    call printf
+    swap_stack
+    //popa
+    ret
+    
+put_floatln:
+    //pusha
+    swap_stack
+    movss (%esp), %xmm0
+    cvtss2sd %xmm0, %xmm2
+    pop %eax
+    sub $16, %esp
+    movdqu %xmm2, (%esp)
+    push $PRINTF_FLOAT_NL
     call printf
     swap_stack
     //popa

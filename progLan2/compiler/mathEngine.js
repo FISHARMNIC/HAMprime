@@ -1,5 +1,5 @@
 module.exports = function (arr) {
-    console.log("MATH ON", arr)
+    debugPrint("MATH ON", arr)
     var scanPos = 0;
     var current = arr[scanPos]
     var mathType = defines.types.u32
