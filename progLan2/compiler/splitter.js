@@ -104,7 +104,7 @@ function split(line) {
 function parseFinalCode()
 {
     //console.log(outputCode)
-    return(
+    var out = 
 `
 .1byte = .byte
 
@@ -146,8 +146,10 @@ main:
     call entry
     ret
 `
-   + outputCode.text.join("\n") + "\n"
-    )
+
+var index = out.split("\n").length
+out += outputCode.text.join("\n") + "\n"
+    return {out,index}
 }
 
 function addReserved(x)

@@ -181,7 +181,7 @@ pushl %eax
 mov __return_32__, %eax
 mov %eax, 0(%esp)
 mov __return_32__, %edx
-mov %edx, myCar
+mov %edx, 0
 # --- beginning property value read ---
 mov myCar, %edx
 add $0, %edx

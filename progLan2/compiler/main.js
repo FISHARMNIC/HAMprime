@@ -15,6 +15,8 @@
 - [NEW] Add static properties
 - [NEW] Make all dynam. allocated things freed at the end of the function. If you add a keyword "keep" then it is not freed
 
+- [HIGH] Make calling the function "malloc" also result in transience/persistence. Maybe make some sort of function keyword that specifies whether the result needs to be garbage collected?
+- [HIGH] Make it so loading an init. into "this" (ex. this.price <- Price<domestic_price>) will not have transience no matter what. And at the end, a free actually has to free this data too
 - [HIGH] "variablesOnStack" is never cleared. Should I? Check if compiler prioritizes stack vars
 - [HIGH] Math not working on minus sign. See factorial.x: MATH ON [ '_loc_factorial_number' ] should include - 1
 - [HIGH] Make sure initializers and methods use asm.handleParamsNew
@@ -74,10 +76,8 @@ globalThis.userListInitLengths = {}    // Object                                
 globalThis.variablesOnStack = {}       // Object : {name: offset, ...}              : All variables currently in stack (reset after end of scope)
 globalThis.localDynaMem = {};          // Object : {label: {sizeBytes, persistent}  : All labels that were dyn. alloc  (reset after end of scope)
 globalThis.localDynaMemInLine = []     // Array  : [localDynaMem entry]             : All data allocated dynamically (reset after each line)
-globalThis.usePersistanceByDef = true;
-globalThis.debugPrint = function () {
-    console.log("\033[92m[DEBUG]\033[0m", ("\033[96m" + (debugPrint.caller.name || "*unkown caller*") + "\033[0m").padEnd(32), ...arguments);
-}
+globalThis.usePersistanceByDef = true; // Var    :                                  : This controls whether dyn. alloc. vars. are freed at the end of the function. 
+globalThis.ownerShipObj = {};          // Object : {startingLine: caller function}  : This holds the function that added the code at a certain line in asm. For debugging segfaults
 
 globalThis.parser = require("./splitter.js"); // parser
 globalThis.defines = require("./defines.js"); // variables like types
@@ -87,143 +87,21 @@ globalThis.mathEngine = require("./mathEngine.js");
 globalThis.floatEngine = require("./floatEngine.js");
 globalThis.optimiser = require("./optimise.js");
 
-globalThis.userVariables = {           // Object : {variable name: type}
-    __return_8__: defines.types.i8,
-    __return_16__: defines.types.i16,
-    __return_32__: defines.types.i32,
-    __return_flt__: defines.types.f32,
-    "this": defines.types.u32,
-    "argv": defines.types.u32,
-    "argc": defines.types.u32
-}
-globalThis.userFunctions = {           // Object : {function name: {func name, parameters[{param name , type},...]}, return type}
-    "put_string": {
-        name: 'put_string',
-        parameters: [{ name: "buffer", type: defines.types.p8 }],
-        returnType: defines.types.u32
-    },
-    "put_int": {
-        name: 'put_int',
-        parameters: [{ name: "number", type: defines.types.u32 }],
-        returnType: defines.types.u32
-    },
-    "puts": {
-        name: 'puts',
-        parameters: [{ name: "string", type: defines.types.p8 }],
-        returnType: defines.types.u32
-    },
-    "printf_mini": {
-        name: 'printf_mini',
-        parameters: [],
-        returnType: defines.types.u32
-    },
-    "put_float": {
-        name: 'put_float',
-        parameters: [{ name: "number", type: defines.types.f32 }],
-        returnType: defines.types.u32
-    },
-    "put_floatln": {
-        name: 'put_floatln',
-        parameters: [{ name: "number", type: defines.types.f32 }],
-        returnType: defines.types.u32
-    },
-    "fopen": {
-        name: 'fopen',
-        parameters: [],
-        returnType: defines.types.u32
-    },
-    "fwrite": {
-        name: 'fopen',
-        parameters: [],
-        returnType: defines.types.u32
-    },
-    "fread": {
-        name: 'fopen',
-        parameters: [],
-        returnType: defines.types.u32
-    },
-    "fclose": {
-        name: 'fclose',
-        parameters: [],
-        returnType: defines.types.u32
-    },
-    "mpow": {
-        name: 'mpow',
-        parameters: [],
-        returnType: defines.types.f32
-    },
-    "scanf_mini": {
-        name: 'scanf_mini',
-        parameters: [],
-        returnType: defines.types.u32
-    },
-    "malloc": {
-        name: "malloc",
-        parameters: [],
-        returnType: defines.types.p32
-    },
-    "free": {
-        name: "free",
-        parameters: [],
-        returnType: defines.types.u32
-    }
-};
-globalThis.assemblyMacros = [          // Array  : All macros declared in assembly
-    "O_CREAT_RW",
-    "O_ACCMODE",
-    "O_RDONLY",
-    "O_WRONLY",
-    "O_RDWR",
-    "O_CREAT",
-    "O_EXCL",
-    "O_NOCTTY",
-    "O_TRUNC",
-    "O_APPEND",
-    "O_NONBLOCK",
-    "O_NDELAY",
-    "O_SYNC",
-    "O_FSYNC",
-    "O_ASYNC",
-]
-globalThis.functionMacros = {          // Todo, maybe delete actually
-    memfill: function (rep, size, value) {
-        outputCode.push(`.fill ${rep}, ${size}, ${value}`)
-        typeStack.push(defines.type.p32);
-    }
-}
+// add ownership. Any function that that data to a file
+//throwE(outputCode.data.__proto__)
+outputCode.text.push = function(name)
+{
 
-// important functions
-
-globalThis.objCopy = function (x) {
-    return JSON.parse(JSON.stringify(x))
-}
-globalThis.throwE = function (x) {
-    console.log(`[ERROR] @ line ${globalInd}: `, ...arguments)
-    console.trace()
-    console.log("\n\n================== THIS WAS NOT A JS ERROR, THIS WAS THROWE ==================\n\n")
-    process.exit(1)
-}
-globalThis.throwW = function (x) {
-    console.log(`[WARNING] @ line ${globalInd}: `, ...arguments)
-}
-globalThis.popTypeStack = function () {
-    //console.log("POPPPPPP")
-    if (typeStack.length == 0) {
-        throwE("[COMPILER] Missing expected type")
+    //oso[text length] = current exec offset
+    var outGoing = {line: globalInd, caller: (new Error()).stack} //caller: arguments.callee.caller.name || "*unkown caller*"}
+    if(ownerShipObj[this.length] == undefined)
+    {
+        ownerShipObj[this.length] = [outGoing]
+    } else {
+        ownerShipObj[this.length].push(outGoing)
     }
-    return typeStack.pop()
-}
-//taken from: https://stackoverflow.com/questions/65538406/convert-javascript-number-to-float-single-precision-ieee-754-and-receive-integ
-globalThis.doubleToInt = function (double) {
-    const buffer = new ArrayBuffer(4);
-    const float32Arr = new Float32Array(buffer);
-    const uint32Array = new Uint32Array(buffer);
 
-    float32Arr[0] = double;
-    return uint32Array[0];
-}
-globalThis.methodExists = function (n) {
-    return Object.values(formatMethods).map(x => Object.keys(x)).flat().includes(n)
+    Array.prototype.push.call(this, ...arguments)
 }
 
 // program entry
@@ -241,7 +119,23 @@ function start() {
     inputCode = String(fs.readFileSync(INPUTFILE));
     //split by semi col and newline, and filter out empty
     inputCode = inputCode.replace(/\n/g, ";").split(";").filter(x => x);
+
     compileMultiple(inputCode)
+    //console.log(inputCode)
+        
+    actions.done_generateTempLabels();
+    var out = parser.parseFinalCode();
+    ownerShipObj["offset"] = out.index; // text section offset (must add to each key)
+    ownerShipObj["file"] = INPUTFILE;
+
+    fs.writeFileSync(__dirname + "/compiled/out.s", out.out)
+    fs.writeFileSync(__dirname + "/compiled/debugInfo.json", JSON.stringify(ownerShipObj))
+    console.log("******************** COMPILATION SUCCESSFULL ********************")
+    console.log("-- assembly in    '/compiled/out.s'")
+    console.log("-- assemble using 'gcc out.s -o out -g -no-pie -m32 -fno-asynchronous-unwind-tables'")
+
+    
+    //console.log(ownerShipObj)
 }
 
 // Compiles a single line
@@ -936,8 +830,10 @@ function compileLine(line) {
 function previewNextLine() {
     return parser.split(inputCode[globalInd + 1])
 }
+
 function compileMultiple(lines) {
     inputCode.forEach((x, ind) => {
+        if(x == "") return
         globalInd = ind
         x = parser.split(x)
         console.log("1) COMPILING:", x.join(" "))
@@ -970,12 +866,6 @@ function compileMultiple(lines) {
         })
     }
     )
-    actions.done_generateTempLabels();
-    var out = parser.parseFinalCode()
-    fs.writeFileSync(__dirname + "/compiled/out.s", out)
-    console.log("******************** COMPILATION SUCCESSFULL ********************")
-    console.log("-- assembly in    '/compiled/out.s'")
-    console.log("-- assemble using 'gcc out.s -o out -g -no-pie -m32 -fno-asynchronous-unwind-tables'")
     //optimiser(outputCode.text);
     //console.log(outputCode.text)
 }
