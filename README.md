@@ -1,21 +1,38 @@
 # <img width="50" alt="Screen Shot 2024-02-10 at 9 33 08 AM" src="https://github.com/FISHARMNIC/proglan2/assets/73864341/9a5327b9-ffcc-425a-b927-ad829415715b"> HAM` (aka proglan)
 
 A 32bit compiled programming language that runs on Linux
+# [Docs Link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
 
 # What makes it unique / Why use it?
 * "Simple but complex"
-  * incorporating the use of low-level memory access: Pointers and manual allocation
-  * High-level operations like typeless arrays and automatic re-allocation
-* Combining the function-based ideology of C, and objects from Java
-  * See `formats`, and how they can act as both structures and classes
+  * Automatic operations like dynamic typing, typeless arrays, and automatic re-allocation
+  * Optional manual features like typed variables, pointers, and malloc
+* Combining the function-based ideology of C, and classes from Java
+  * formats, the perfect mixture of structures and classes
 * Fully compiled language
-  * HAM` compiler generates 32-bit x86 assembly (using GNU assembler)
+  * HAM` compiler generates 32-bit x86 assembly, which can then assembled using gnu
 * Integration with C functions like printf and scanf
-* Very easy to incorporate assembly
+* Very easy to include your own assembly functions / libraries (see documentation for calling convention)
+* Builtin debugger
+  * Utilizes gdb to find the line that the assembly faulted on
+  * Backtraces that to original file and displays what line caused the crash
+  * ###### In this case the initializer never attached an instance of price to `myCar`, resulting in a null-pointer access
+  * <img width="761" alt="Screen Shot 2024-04-01 at 11 01 06 AM" src="https://github.com/FISHARMNIC/HAMprime/assets/73864341/f60ebd76-596f-4419-b18d-dc2de968ff4c">
+
 * Speed of C
-  * Tested by printing the result of 1000 floating point operations 
+  * ###### Tested by printing the result of 1000 floating point operations 
   * <img width="600" alt="Screen Shot 2024-03-17 at 1 42 33 PM" src="https://github.com/FISHARMNIC/HAMprime/assets/73864341/b7864d62-e86b-43ae-b65c-cff7a70014ab">
 
+# How to run
+* In `main.js` under the function `start`, there is a variable called `INPUTFILE`. Set that to the directory of the file that you want compiled
+* In a shell:
+  * `cd proglan2/compiler`
+  * `node main` (must have node.js installed)
+  * `cd /compiled`
+  * `./run.sh` (must be in linux. For windows users google WSL and for mac use limaVM, which is what I use)
+* In case of a segfault, you can run the debugger
+  * `cd proglan2/compiler`
+  * `node debugger`
 
 # Currently working
 * Variables
@@ -28,12 +45,14 @@ A 32bit compiled programming language that runs on Linux
 * Printing
 * While loops
 * Arrays
-* Lists (not the same as arrays)
+* Lists (similar to Java ArrayLists)
 * File access
 * Floating point
 * Pointers
 * Stdio
 * Stack variables
+* Garbage collection
+* Debugger
 
 # Todo
 * Fix command line args
@@ -43,8 +62,6 @@ A 32bit compiled programming language that runs on Linux
 * Forward declaration
 * Static and private properties
 * Much more... (see in `main.js`)
-
-# Docs [link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
 
 # Examples
 ### All of the following code compiles and runs
