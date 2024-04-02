@@ -13,7 +13,7 @@ A 32bit compiled programming language that runs on Linux
   * HAM` compiler generates 32-bit x86 assembly, which can then assembled using gnu
 * Integration with C functions like printf and scanf
 * Very easy to include your own assembly functions / libraries (see documentation for calling convention)
-* Builtin debugger
+* Built in debugger
   * Utilizes gdb to find the line that the assembly faulted on
   * Backtraces that to original file and displays what line caused the crash
   * ###### In this case the initializer never attached an instance of price to `myCar`, resulting in a null-pointer access
