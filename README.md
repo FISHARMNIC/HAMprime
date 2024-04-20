@@ -7,15 +7,14 @@ A 32bit compiled programming language that runs on Linux
 * "Simple but complex"
   * Automatic operations like dynamic typing, typeless arrays, and automatic re-allocation
   * Optional manual features like typed variables, pointers, and malloc
-* Combining the function-based ideology of C, and classes from Java
-  * formats, the perfect mixture of structures and classes
+* Combines the function-based ideology of C, and classes from Java
+  * Revolves around the "format", a perfect mixture of structures and classes
 * Fully compiled language
-  * HAM` compiler generates 32-bit x86 assembly, which can then assembled using gnu
+  * HAM` compiler generates 32-bit x86 assembly, which can then be assembled using the gnu assembler
 * Integration with C functions like printf and scanf
 * Very easy to include your own assembly functions / libraries (see documentation for calling convention)
 * Built in debugger
-  * Utilizes gdb to find the line that the assembly faulted on
-  * Backtraces that to original file and displays what line caused the crash
+  * Backtraces to original file and displays what line caused the crash
   * ###### In this case the initializer never attached an instance of price to `myCar`, resulting in a null-pointer access
   * <img width="761" alt="Screen Shot 2024-04-01 at 11 01 06 AM" src="https://github.com/FISHARMNIC/HAMprime/assets/73864341/f60ebd76-596f-4419-b18d-dc2de968ff4c">
 
@@ -65,7 +64,7 @@ A 32bit compiled programming language that runs on Linux
 * Much more... (see in `main.js`)
 
 # Examples
-### All of the following code compiles and runs
+### All of the following code are simple examples that will compile and run. See `examples` for more complex ones.
 formats
 ```
 Price format
