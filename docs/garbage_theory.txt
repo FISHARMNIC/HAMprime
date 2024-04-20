@@ -1,0 +1,36 @@
+static MOT: memory allocation table
+MOT needs to be checked at the end of the function
+
+arrays also have an extra 5 byte at beginning
+
+
+assembly func alloc(size)
+	addr = allocate(size + 5)
+	addr[0] = (4byte) size
+	addr[4] = (1byte) 0 // ownership
+	MOT.append(addr)
+	__returnALLOCATED__ = addr + 5 // actual data area
+
+JS func JS_alloc(size)
+	asm.push(alloc(size))
+	replace word with __returnALLOCATED__
+
+JS for loading something
+	if(pointer)
+	{
+		if(setting global variable, or "this" in a constructor)
+		{
+			asm.push(
+				*(pointer - 1) == 1?
+				yes:
+					*(pointer - 6) = 1; // own
+				
+		}
+		asm.push(normal loading stuff)
+	}
+
+JS for freeing something
+	
+	
+	
+		
