@@ -105,8 +105,8 @@ outputCode.text.push = function(name)
 // program entry
 start()
 function start() {
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
-    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/cliargs/arg.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/str.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
