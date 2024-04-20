@@ -82,9 +82,9 @@ module.exports = {
     },
     getVariableOrParamIfExists: function (x) {
         // IF BROKEN HERE SWAP THESE TWO UPSIDEDOWN
-        if (Object.keys(userVariables).includes(asm.formatLocal(x)))
+        if (objectIncludes(userVariables,asm.formatLocal(x)))
             return userVariables[asm.formatLocal(x)];
-        if (Object.keys(userVariables).includes(x))
+        if (objectIncludes(userVariables,x))
             return userVariables[x];
         return null
     },
@@ -116,7 +116,7 @@ module.exports = {
         )
     },
     loadVariableSmart: function (_name, type, value) {
-        if (Object.keys(variablesOnStack).includes(_name)) {
+        if (objectIncludes(variablesOnStack,_name)) {
             this.loadStackVariable(_name, type, value)
         }
         else {
@@ -202,7 +202,7 @@ module.exports = {
         debugPrint(_name, value)
         // if specials: if(!Object.keys(defines.special).includes(type)) 
 
-        if (Object.keys(userVariables).includes(_name) || localsIncludes(_name)) {
+        if (objectIncludes(userVariables,_name) || localsIncludes(_name)) {
             throwE("Variable already defined", _name)
         }
         if (type.special && asParam) {
@@ -379,7 +379,7 @@ module.exports = {
             outputCode.text.push(`pushl ${this.formatIfConstantOrLiteral(x)}`)
         })
 
-        if (initializer && Object.keys(userInits).includes(_name)) {
+        if (initializer && objectIncludes(userInits,_name)) {
             outputCode.text.push(
                 `swap_stack`,
                 `call ${asm.formatInitializer(_name)}`,
@@ -398,7 +398,7 @@ module.exports = {
             return isMethod.returnType
         }
 
-        if (!initializer && (Object.keys(userFunctions).includes(_name))) {
+        if (!initializer && (objectIncludes(userFunctions,_name))) {
 
             return userFunctions[_name].returnType
         }
@@ -640,7 +640,7 @@ module.exports = {
         }
     },
     getFormatProperty(name, property, returnAddr = false, restOfLine = []) {
-        if (Object.keys(userVariables).includes(asm.formatLocal(name))) {
+        if (objectIncludes(userVariables,asm.formatLocal(name))) {
             name = asm.formatLocal(name);
         }
 
@@ -754,7 +754,7 @@ module.exports = {
     },
     listNewItem(list_name, list_type, new_item) {
         var oldSize = asm.formatListSizeVar(list_name);
-        if (Object.keys(variablesOnStack).includes(oldSize)) {
+        if (objectIncludes(variablesOnStack,oldSize)) {
             this.readStackVariable(oldSize)
         }
         if (userListInitLengths[list_name] == 0) {
@@ -795,13 +795,13 @@ module.exports = {
         )
     },
     isOnStack: function (_name) {
-        return Object.keys(variablesOnStack).includes(_name)
+        return objectIncludes(variablesOnStack,_name)
     }
 }
 
 function localsIncludes(word) {
     //debugPrint("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
-    return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
+    return ((inscope != 0) && objectIncludes(userVariables,asm.formatLocal(word)))
 }
 
 function searchFormatForProperty(fmt, property) {

@@ -24,8 +24,7 @@
 - [HIGH] Lists cannot be passed as params
     - due to secondary var
     - maybe instead, do the offset thing in MOT, where length is stored 4 bytes before
-- [HIGH] Local variables don't exist! They are created like normal variables
-    - make them stack vars
+- [HIGH] Local all locals stack vars
 - [HIGH] Allow top level (static allocation) of lists (not arrays)
 - [HIGH] change math engine to use just a regular label like templabel
 - [HIGH] Fix argv
@@ -40,6 +39,8 @@
 - [LOW] Should I be closing inscope upon "}"? Look at elif for function not setting inscope to null
 - [LOW] Switch class intiators to be called with paren. instead: Car(1,2,3) vs Car<1,2,3>
 - [LOW] Make switch to 64bit
+- [LOW] Switch to normal calling convention, allows easier stack vars
+
 */
 
 const fs = require("fs");
@@ -107,14 +108,14 @@ outputCode.text.push = function (name) {
 start()
 function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
-    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/cliargs/arg.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/str.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
 
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/recursiveSum.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/static.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/static.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/functions/function.x"
 
     inputCode = String(fs.readFileSync(INPUTFILE));
@@ -181,7 +182,10 @@ function compileLine(line) {
             includedAssemblyFiles.push(__dirname + "/libs/" + line.slice(0, line.length - 1).join("") + ".s")
         }
         else if (word == "clone") {
-
+            var source = offsetWord(1);
+            var new_ptr = actions.mallocSize(asm.calcSizeOfFormat(userVariables[source].templatePtr))
+            // todo memcpy
+            throwE("not finished")
         }
         else if (word == "sizeof") {
             var type = popTypeStack();
@@ -242,7 +246,7 @@ function compileLine(line) {
             if (word == "<") { //setting
                 var base = offsetWord(-1);
                 if (localsIncludes(base)) base = asm.formatLocal(base)
-                if (Object.keys(variablesOnStack).includes(base)) { // stack var
+                if (objectIncludes(variablesOnStack, base)) { // stack var
                     actions.readStackVariable(base)
                 }
                 var baseType = userVariables[base];
@@ -319,7 +323,7 @@ function compileLine(line) {
             //throwE(line)
 
         }
-        else if (Object.keys(defines.types).includes(word)) // word = type/method/function/init ALSO FOR POINTERS
+        else if (objectIncludes(defines.types, word)) // word = type/method/function/init ALSO FOR POINTERS
         {
             var type = defines.types[word];
             var lbl;
@@ -392,30 +396,30 @@ function compileLine(line) {
         {
             line[wordNum] = "$" + word
         }
-        else if (Object.keys(userMacros).includes(word)) // is an existing replacement macro 
+        else if (objectIncludes(userMacros, word)) // is an existing replacement macro 
         {
             line[wordNum] = userMacros[word]
         }
         else if (localsIncludes(word))  // word = local variable
         {
-            if (Object.keys(variablesOnStack).includes(asm.formatLocal(word))) { // stack var
+            if (objectIncludes(variablesOnStack, asm.formatLocal(word))) { // stack var
                 actions.readStackVariable(asm.formatLocal(word))
             }
             line[wordNum] = asm.formatLocal(word)
             typeStack.push(userVariables[asm.formatLocal(word)])
             word = line[wordNum]
         }
-        else if (Object.keys(userVariables).includes(word)) // word = global variable
+        else if (objectIncludes(userVariables, word)) // word = global variable
         {
-            // throwE(Object.keys(variablesOnStack).includes(word))
-            if (Object.keys(variablesOnStack).includes(word)) { // stack var
+            // throwE(objectIncludes(variablesOnStack).includes(word))
+            if (objectIncludes(variablesOnStack, word)) { // stack var
                 actions.readStackVariable(word)
             }
             typeStack.push(userVariables[word])
         }
         else if (word == "(" && (localsIncludes(offsetWord(-1))
-            || Object.keys(userFunctions).includes(offsetWord(-1))
-            || Object.keys(userVariables).includes(offsetWord(-1))
+            || objectIncludes(userFunctions, offsetWord(-1))
+            || objectIncludes(userVariables, offsetWord(-1))
             || (offsetWord(-2) == "." && methodExists(offsetWord(-1)))
         )) { // function call
             //console.log("----------------", offsetWord(-1))
@@ -470,7 +474,7 @@ function compileLine(line) {
             // todo: nested properties like bob.parent.child
             // DELETE IF BROKEN March 12 2023
             var parent = offsetWord(-1);
-            if (Object.keys(userVariables).includes(parent) || localsIncludes(parent)) // for chaining
+            if (objectIncludes(userVariables, parent) || localsIncludes(parent)) // for chaining
             {
                 var ret = actions.getFormatPropertyNew(parent, line.slice(wordNum), false)
                 var lbl = ret.lbl
@@ -479,12 +483,12 @@ function compileLine(line) {
                 line[wordNum - 1] = ret.lbl
                 line.splice(wordNum, restOfLine.length * 2)
                 //throwE(line)
-            } else if (Object.keys(formats).includes(parent)) { // statics
+            } else if (objectIncludes(formats, parent)) { // statics
                 var sname = asm.formatStaticProperty(parent, offsetWord(1))
-                if (Object.keys(userVariables).includes(sname)) { // if actually a static property
+                if (objectIncludes(userVariables, sname)) { // if actually a static property
                     line[wordNum - 1] = sname;
                     line.splice(wordNum, 2); //remove static, chain the rest
-                    
+
                     // todo: chain
                     // var ret = actions.getFormatPropertyNew(sname, line.slice(wordNum), false)
                     // var lbl = ret.lbl
@@ -493,7 +497,7 @@ function compileLine(line) {
                     // // TODO March 12 2023: make this function chain the result by passing not just the last one
                     // line[wordNum - 1] = ret.lbl
                     // line.splice(wordNum, restOfLine.length * 2)
-                   // throwE(line)
+                    // throwE(line)
                 } else {
                     throwE(`Static property "${offsetWord(1)}" from format "${parent}" does not exist`)
                 }
@@ -523,14 +527,14 @@ function compileLine(line) {
                 break;
             }
 
-            if (Object.keys(variablesOnStack).includes(formatIfLocal(offsetWord(-1)))) {
+            if (objectIncludes(variablesOnStack, formatIfLocal(offsetWord(-1)))) {
                 //throwE()
                 actions.loadStackVariable(formatIfLocal(offsetWord(-1)), popTypeStack(), offsetWord(1))
                 break;
             }
 
             // todo: rewrite this ifelse below to use formatIfLocal
-            if (Object.keys(userVariables).includes(offsetWord(-1))) // already defined variables
+            if (objectIncludes(userVariables, offsetWord(-1))) // already defined variables
             {
                 actions.loadVariable(offsetWord(-1), popTypeStack(), offsetWord(1))
             } else if (localsIncludes(offsetWord(-1))) // alredy defined local
@@ -541,17 +545,29 @@ function compileLine(line) {
             else { // new variables
                 var type = popTypeStack()
                 var nextWord = offsetWord(1);
-                // if (parseFloat(offsetWord(-2)) == offsetWord(-2)) {
-                //     // TODO IF ARRAY
-                // }
-
-                if (offsetWord(-2) == "_stack_") {
-                    //throwE(line)
-                    actions.createStackVariable(offsetWord(-1), type, nextWord)
+                var _name = offsetWord(-1);
+                // HERE IF BROKEN APRIL 20, remove next chunk and uncomment bottom part
+                if (inscope != 0) { // if in a scope
+                    _name = asm.formatLocal(_name)
+                    if (offsetWord(-2) == "_stack_") {
+                        actions.createStackVariable(_name, type, nextWord)
+                    } else {
+                        actions.createVariable(_name, type, nextWord)
+                    }
+                    //actions.createStackVariable(_name, type, nextWord)
+                    debugPrint("---LOCAL----", _name)
                 } else {
-                    //throwE(line)
-                    actions.createVariable(offsetWord(-1), type, nextWord)
+                    debugPrint("---GLOBAL---", _name)
+                    actions.createVariable(_name, type, nextWord)
                 }
+
+                // if (offsetWord(-2) == "_stack_") {
+                //     //throwE(line)
+                //     actions.createStackVariable(_name, type, nextWord)
+                // } else {
+                //     //throwE(line)
+                //     actions.createVariable(_name, type, nextWord)
+                // }
             }
             break;
         }
@@ -918,8 +934,8 @@ function formatReturn(type) {
 
 
 function localsIncludes(word) {
-    //console.log("######$$$$$$%%%%!~~~~~~", Object.keys(userVariables).includes(asm.formatLocal(word)), inscope)
-    return ((inscope != 0) && Object.keys(userVariables).includes(asm.formatLocal(word)))
+    //console.log("######$$$$$$%%%%!~~~~~~", objectIncludes(userVariables).includes(asm.formatLocal(word)), inscope)
+    return ((inscope != 0) && objectIncludes(userVariables, asm.formatLocal(word)))
 }
 
 function formatIfLocal(word) {

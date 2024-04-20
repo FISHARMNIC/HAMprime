@@ -257,6 +257,10 @@ globalThis.methodExists = function (n) {
     return Object.values(formatMethods).map(x => Object.keys(x)).flat().includes(n)
 }
 
+globalThis.objectIncludes = function(obj,inc)
+{
+    return Object.keys(obj).includes(inc)
+}
 
 var mathOps = "+-*/".split("")
 
