@@ -16,6 +16,8 @@
     - need to support nested. 
 - [NEW] Add default values to formats
 
+- [HIGH] "getFormatPropertyNew" does not either return any type, or use smaller registers for smaller properties
+- [HIGH] Methods should be part of a class, so that they can be called from a pointer ex. see plans/methodsNEW.x
 - [HIGH] Make it so loading an init. into "this" (ex. this.price <- Price<domestic_price>) will not have transience no matter what. And at the end, a free actually has to free this data too
 - [HIGH] "variablesOnStack" is never cleared. Should I? Check if compiler prioritizes stack vars
 - [HIGH] Math not working on minus sign. See factorial.x: MATH ON [ '_loc_factorial_number' ] should include - 1
@@ -57,6 +59,7 @@ globalThis.outputCode = { // object with out data
 
 globalThis.includedAssemblyFiles = []; // Array  : [dir,...]                         : assembly files included by uses
 globalThis.formats = {};               // Object : {format names: properties,...}   : 
+globalThis.formatStatics = {};
 globalThis.userInits = {}              // Object : {format init: properties,...}    : 
 globalThis.formatMethods = {};         // Object : {format method: properties,...}  : 
 globalThis.oldThisType = [];           // ??
@@ -87,13 +90,11 @@ globalThis.optimiser = require("./optimise.js");
 
 // add ownership. Any function that that data to a file
 //throwE(outputCode.data.__proto__)
-outputCode.text.push = function(name)
-{
+outputCode.text.push = function (name) {
 
     //oso[text length] = current exec offset
-    var outGoing = {line: globalInd, caller: (new Error()).stack} //caller: arguments.callee.caller.name || "*unkown caller*"}
-    if(ownerShipObj[this.length] == undefined)
-    {
+    var outGoing = { line: globalInd, caller: (new Error()).stack } //caller: arguments.callee.caller.name || "*unkown caller*"}
+    if (ownerShipObj[this.length] == undefined) {
         ownerShipObj[this.length] = [outGoing]
     } else {
         ownerShipObj[this.length].push(outGoing)
@@ -106,14 +107,14 @@ outputCode.text.push = function(name)
 start()
 function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/cliargs/arg.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/str.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
 
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/recursiveSum.x"
-    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/keep.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/static.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/functions/function.x"
 
     inputCode = String(fs.readFileSync(INPUTFILE));
@@ -122,7 +123,7 @@ function start() {
 
     compileMultiple(inputCode)
     //console.log(inputCode)
-        
+
     actions.done_generateTempLabels();
     var out = parser.parseFinalCode();
     ownerShipObj["offset"] = out.index; // text section offset (must add to each key)
@@ -134,7 +135,7 @@ function start() {
     console.log("-- assembly in    '/compiled/out.s'")
     console.log("-- assemble using 'gcc out.s -o out -g -no-pie -m32 -fno-asynchronous-unwind-tables'")
 
-    
+
     //console.log(ownerShipObj)
 }
 
@@ -180,7 +181,7 @@ function compileLine(line) {
             includedAssemblyFiles.push(__dirname + "/libs/" + line.slice(0, line.length - 1).join("") + ".s")
         }
         else if (word == "clone") {
-            
+
         }
         else if (word == "sizeof") {
             var type = popTypeStack();
@@ -188,10 +189,8 @@ function compileLine(line) {
             line[wordNum] = String(sz / 8)
             typeStack.push(type)
         }
-        else if (word == "defualtPersistace")
-        {
-            if(offsetWord(1) == "true" || offsetWord(1) == "1")
-            {
+        else if (word == "defualtPersistace") {
+            if (offsetWord(1) == "true" || offsetWord(1) == "1") {
                 usePersistanceByDef = true;
             } else {
                 usePersistanceByDef = false;
@@ -470,25 +469,46 @@ function compileLine(line) {
         else if (word == ".") {
             // todo: nested properties like bob.parent.child
             // DELETE IF BROKEN March 12 2023
-            if (Object.keys(userVariables).includes(offsetWord(-1)) || localsIncludes(offsetWord(-1))) // for chaining
+            var parent = offsetWord(-1);
+            if (Object.keys(userVariables).includes(parent) || localsIncludes(parent)) // for chaining
             {
-                var ret = actions.getFormatPropertyNew(offsetWord(-1), line.slice(wordNum), false)
+                var ret = actions.getFormatPropertyNew(parent, line.slice(wordNum), false)
                 var lbl = ret.lbl
                 var restOfLine = ret.restOfLine
                 // TODO March 12 2023: make this function chain the result by passing not just the last one
                 line[wordNum - 1] = ret.lbl
                 line.splice(wordNum, restOfLine.length * 2)
                 //throwE(line)
+            } else if (Object.keys(formats).includes(parent)) { // statics
+                var sname = asm.formatStaticProperty(parent, offsetWord(1))
+                if (Object.keys(userVariables).includes(sname)) { // if actually a static property
+                    line[wordNum - 1] = sname;
+                    line.splice(wordNum, 2); //remove static, chain the rest
+                    
+                    // todo: chain
+                    // var ret = actions.getFormatPropertyNew(sname, line.slice(wordNum), false)
+                    // var lbl = ret.lbl
+                    // var restOfLine = ret.restOfLine
+                    // throwE(line, wordNum, restOfLine)
+                    // // TODO March 12 2023: make this function chain the result by passing not just the last one
+                    // line[wordNum - 1] = ret.lbl
+                    // line.splice(wordNum, restOfLine.length * 2)
+                   // throwE(line)
+                } else {
+                    throwE(`Static property "${offsetWord(1)}" from format "${parent}" does not exist`)
+                }
             }
         }
         else if (word == "<-") { // load something into variable
             var ident = brackStackOffsetFromEnd(1)
             if (ident.type == "format") { // if in format definition
-                var pname = offsetWord(-1)
+                var pname = offsetWord(-1); // property name
                 var ptype = popTypeStack();
-                //console.log(`   - format:${ident.data.name} property[${pname}] type{${ptype.size}:${ptype.pointer}}`)
-                //console.log(defines.types.Price.templatePtr)
-                ident.data.properties.push({ name: pname, type: ptype })
+                if (line[0] == "static") {
+                    ident.data.statics.push({ name: pname, type: ptype, value: offsetWord(1) })
+                } else {
+                    ident.data.properties.push({ name: pname, type: ptype })
+                }
                 break;
             }
             if (offsetWord(-2) == '.') { // if setting format
@@ -508,8 +528,6 @@ function compileLine(line) {
                 actions.loadStackVariable(formatIfLocal(offsetWord(-1)), popTypeStack(), offsetWord(1))
                 break;
             }
-
-
 
             // todo: rewrite this ifelse below to use formatIfLocal
             if (Object.keys(userVariables).includes(offsetWord(-1))) // already defined variables
@@ -638,9 +656,16 @@ function compileLine(line) {
             else if (data.type == "format") {
                 var _name = data.data.name
                 var properties = data.data.properties
+                var statics = data.data.statics
+
+                //throwE(statics)
+                statics.forEach(x => {
+                    actions.createVariable(asm.formatStaticProperty(_name, x.name), x.type, x.value)
+                })
 
                 debugPrint("CLOSING FORMAT DEFINITION", properties.map(x => x.type.templatePtr))
                 formats[_name] = objCopy(properties);
+                formatStatics[_name] = objCopy(statics);
                 formatMethods[_name] = {};
                 var fmt = objCopy(defines.types.___format_template___);
                 fmt.templatePtr = formats[_name];
@@ -698,7 +723,8 @@ function compileLine(line) {
                 type: "format",
                 data: {
                     name: _name,
-                    properties: []
+                    properties: [],
+                    statics: []
                 }
             }
             break;
@@ -840,7 +866,7 @@ function previewNextLine() {
 
 function compileMultiple(lines) {
     inputCode.forEach((x, ind) => {
-        if(x == "") return
+        if (x == "") return
         globalInd = ind
         x = parser.split(x)
 
@@ -852,15 +878,15 @@ function compileMultiple(lines) {
             forceP = true;
             x.splice(x.indexOf("transient"), 1);
         }
-        
+
         compileLine(x)
 
-        if(forceP) {
-        localDynaMemInLine.forEach(n => {
-            n.persistent = !usePersistanceByDef;
-        })
-        debugPrint("SETTING PERSISTENTS", localDynaMem)
-    }
+        if (forceP) {
+            localDynaMemInLine.forEach(n => {
+                n.persistent = !usePersistanceByDef;
+            })
+            debugPrint("SETTING PERSISTENTS", localDynaMem)
+        }
 
         Object.entries(actions.currentLabels).forEach(x => {
             var key = x[0]

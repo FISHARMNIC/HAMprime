@@ -635,6 +635,8 @@ module.exports = {
 
             outputCode.text.push(`# --- end property ${returnAddr ? "address" : "value"} read ---`,)
             return { lbl, restOfLine }
+        } else {
+            return {lbl:name, restOfLine}
         }
     },
     getFormatProperty(name, property, returnAddr = false, restOfLine = []) {

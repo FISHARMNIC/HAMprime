@@ -36,10 +36,10 @@ function output(e, out, ste) {
     {
         if(out.includes("SIGSEGV"))
         {
-            console.log("Internal segfault, unable to trace back to HAM. Checking c-functions like scanf or printf")
+            console.log("\033[31mLIBC segfault, unable to trace back to HAM. Checking c-functions like scanf or printf\033[0m")
             exec(`gdb -ex run -ex where -ex 'quit' --args ${__dirname + '/compiled/out'}`, (a,b,c) => {
                 b = b.substring(b.indexOf("SIGSEGV")).split('\n')
-                console.log(b.slice(1,10).join("\n"))
+                console.log(b.filter(x => (/#\d/g).test(x) && !(/(lib32\/libc)|(\?\?)/g).test(x)).join("\n"))
             })
         } else {
             console.log("no segfault")

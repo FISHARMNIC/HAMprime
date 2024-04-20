@@ -131,5 +131,8 @@ module.exports = {
     },
     formatListSizeVar: function(_name) {
         return _name + "_length"
+    },
+    formatStaticProperty: function(parent, prop) {
+        return "_" + parent + "_static_" + prop + "_"
     }
 }
