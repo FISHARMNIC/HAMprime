@@ -25,6 +25,7 @@ A 32bit compiled programming language that runs on Linux
 
 # How to run
 * In `main.js` under the function `start`, there is a variable called `INPUTFILE`. Set that to the directory of the file that you want compiled
+* Copy all foldres into a directory (called `proglan2` here)
 * In a shell:
   * `cd proglan2/compiler`
   * `node main` (must have node.js installed)
