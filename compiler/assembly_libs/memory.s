@@ -49,7 +49,6 @@ malloc:
     call __allocate__ # already in call stack
     mov %eax, __return_32__
     ret
-
 /*
 realloc_rapid_2: # for list reallocation - copies 4 bytes one by one TODO MAKE THIS USE THE ONE IN LISTS
     swap_stack

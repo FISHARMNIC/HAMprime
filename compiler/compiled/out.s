@@ -5,6 +5,7 @@
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/init.s"
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/io.s"
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/memory.s"
+.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/cmp.s"
 
 # additional libs
 

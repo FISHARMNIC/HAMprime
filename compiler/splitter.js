@@ -109,9 +109,10 @@ function parseFinalCode()
 .1byte = .byte
 
 # crucial libs
-.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/init.s"
-.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/io.s"
-.include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/memory.s"
+.include "${__dirname}/assembly_libs/init.s"
+.include "${__dirname}/assembly_libs/io.s"
+.include "${__dirname}/assembly_libs/memory.s"
+.include "${__dirname}/assembly_libs/cmp.s"
 
 # additional libs
 `

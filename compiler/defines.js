@@ -195,6 +195,11 @@ globalThis.userFunctions = {           // Object : {function name: {func name, p
         name: "strlen_rapid",
         parameters: [{name: "string", type: types.p8 }],
         returnType: types.u32
+    },
+    "arrcmp": {
+        name: "arrcmp",
+        parameters: [],
+        returnType: types.u32
     }
 };
 globalThis.assemblyMacros = [          // Array  : All macros declared in assembly
@@ -272,7 +277,7 @@ var condSet = {
     "<=": "setle",
     "!=": "setne"
 }
-var compares= Object.keys(condSet)
+var compares= [...Object.keys(condSet),...Object.keys(condSet).map(x => "@" + x)]
 
 module.exports = {
     types, mathOps, compares, condSet

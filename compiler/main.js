@@ -112,7 +112,7 @@ function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/cliargs/arg.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/str.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
-
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lib_files/read.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/recursiveSum.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/static.x"
@@ -230,6 +230,11 @@ function compileLine(line) {
             userVariables[label] = defines.types.p8
             replaceCurrentWith(label);
             typeStack.push(defines.types.p8);
+        }
+        if (word[0] == "'" && word[word.length - 1] == "'") // char definition
+        {
+            replaceCurrentWith(String(word.charCodeAt(0)))
+            typeStack.push(defines.types.u8);
         }
         if (parseFloat(line[wordNum]) == line[wordNum]) // word = number
         {
@@ -471,7 +476,6 @@ function compileLine(line) {
             }
         }
         else if (word == ".") {
-            // todo: nested properties like bob.parent.child
             // DELETE IF BROKEN March 12 2023
             var parent = offsetWord(-1);
             if (objectIncludes(userVariables, parent) || localsIncludes(parent)) // for chaining
@@ -817,16 +821,26 @@ function compileLine(line) {
                 throwW(`[COMPILER] comparing unequal types: `, tleft, " and ", tright)
             }
 
-            if (tleft.pointer == true || right.pointer == true) {
-                // todo compare contents of pointer
+            var fmtl = asm.formatRegister("a", tleft)
+            var fmtr = asm.formatRegister("b", tright)
+            var lbl = actions.requestTempLabel(defines.types.u8)
+
+            if ((tleft.pointer == true || right.pointer == true) && offsetWord[1][0] == "@" ) {
+                outputCode.text.push(
+                    `push ${left}`,
+                    `push ${right}`,
+                    `push ${asam.typeToBits(tleft)}`,
+                    `swap_stack`,
+                    `call arrcmp`,
+                    `swap_stack`,
+                    `mov _return32_, %eax`,
+                    `mov %al, ${lbl}`
+                )
             }
             else if (tleft.templatePtr != undefined || tright.templatePtr != undefined) {
                 // todo compare structures
             }
             else {
-                var fmtl = asm.formatRegister("a", tleft)
-                var fmtr = asm.formatRegister("b", tright)
-                var lbl = actions.requestTempLabel(defines.types.u8)
                 outputCode.text.push(
                     `mov $0, %cl`,
                     `xor %eax, %eax; xor %ebx, %ebx`,
