@@ -108,10 +108,17 @@ outputCode.text.push = function (name) {
 
 // program entry
 start()
+
+// function start()
+// {
+//     console.log(compileLine(parser.split()))
+// }
+
 function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/array_comparison/a.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/array_comparison/a.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/shape.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/cliargs/arg.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/str.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
@@ -352,6 +359,7 @@ function compileLine(line) {
                     {
                         actions.createInitializer(offsetWord(-1), area)
 
+
                     } else if (word == "method") {
                         actions.createMethod(offsetWord(-2,), offsetWord(-1), area, popTypeStack())
                     } else { // if format
@@ -436,13 +444,15 @@ function compileLine(line) {
             var params = captureUntil(line, wordNum, ")")
             if (offsetWord(-2) == ".") { // method
                 var className = offsetWord(-3)
-                //throwE("calling method", methodExists(fn))
-
+                className = formatIfLocal(className)
                 oldThisType.push(objCopy(userVariables["this"]))
-                userVariables["this"] = objCopy(userVariables[className]) // re-type "this"
+                //throwE(userVariables, className)
+                //throwE(line,inscope)
+               // userVariables["this"] = objCopy(userVariables[className]) // re-type "this"
 
                 var label = actions.requestTempLabel(defines.types.u32)
 
+                //debugPrint(userVariables, line)
                 var methodInfo = formatMethods[userVariables[className].fmt_name][fn]
                 var formatInfo = formats[userVariables[className].fmt_name]
 
@@ -626,7 +636,9 @@ function compileLine(line) {
                 // already in dec
                 bracketStack.push(objCopy(requestBracketStack))
 
+                console.log(">>>>>>>>> SETTING THIS TO: ", defines.types[data.name])
                 oldThisType.push(objCopy(userVariables["this"]))
+                //debugPrint("RETYPE THIS ", defines.types[data.name] )
                 userVariables["this"] = defines.types[data.name] // re-type "this"
                 inscope = userInits[data.name] // enter scope of init.
 
@@ -647,6 +659,12 @@ function compileLine(line) {
                 // TODO consolidate this into function so that we dont have repeated code for the initializer
                 bracketStack.push(objCopy(requestBracketStack))
                 inscope = formatMethods[data.struct_name][data.name]
+                //throwE(defines.types[data.struct_name])
+
+                oldThisType.push(objCopy(userVariables["this"]))
+                //debugPrint("RETYPE THIS ", defines.types[data.name] )
+                userVariables["this"] = defines.types[data.struct_name]
+
                 //console.log("=+=======+= STACK RESET method")
                 //currentStackOffset = 0;
                 inscope.name = data.struct_name
@@ -730,7 +748,10 @@ function compileLine(line) {
                 outputCode.text.push(
                     "swap_stack",
                     "ret")
-                userVariables["This"] = oldThisType.pop()
+
+                
+                userVariables["this"] = oldThisType.pop()
+                console.log("--------RESET THIS TO: ", userVariables["this"], line)
                 inscope = 0;
             }
             else if (data.type == "method") {
@@ -896,6 +917,7 @@ function compileLine(line) {
         // }
     }
     //console.log(" 2) MODIFIED:", line.join(" "));
+    return line
 }
 
 function previewNextLine() {

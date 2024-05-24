@@ -600,6 +600,7 @@ module.exports = {
 
             //throwE(name, restOfLine, userVariables[name])
             // get each chains offset and type
+            debugPrint("WWWWWWWW", name, restOfLine)
             restOfLine.forEach(x => {
                 var out = searchFormatForProperty(host, x)
                 propertyChain.push(out)
@@ -824,6 +825,8 @@ function searchFormatForProperty(fmt, property) {
     var index = -1;
     var sum = 0;
     //debugPrint("@@@@@@ scanning @@@@@@", fmt)
+    debugPrint("FFFFFFF", fmt)
+    //throwE(fmt.templatePtr)
     fmt.templatePtr.every((x, i) => {
         //debugPrint(i)
         if (x.name == property) {
