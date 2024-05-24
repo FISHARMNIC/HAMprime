@@ -16,6 +16,8 @@
     - need to support nested. 
 - [NEW] Add default values to formats
 
+- [HIGH] throw warn when not giving the right amount of arguments to function
+- [HIGH] Make sure mmap is aligned 
 - [HIGH] "getFormatPropertyNew" does not either return any type, or use smaller registers for smaller properties
 - [HIGH] Methods should be part of a class, so that they can be called from a pointer ex. see plans/methodsNEW.x
 - [HIGH] Make it so loading an init. into "this" (ex. this.price <- Price<domestic_price>) will not have transience no matter what. And at the end, a free actually has to free this data too
@@ -108,7 +110,8 @@ outputCode.text.push = function (name) {
 start()
 function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/array_comparison/a.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/cliargs/arg.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/str.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
@@ -825,17 +828,22 @@ function compileLine(line) {
             var fmtr = asm.formatRegister("b", tright)
             var lbl = actions.requestTempLabel(defines.types.u8)
 
-            if ((tleft.pointer == true || right.pointer == true) && offsetWord[1][0] == "@" ) {
+            debugPrint("COMPARISON", tleft.pointer, offsetWord(1), tright.pointer)
+            if ((tleft.pointer == true || tright.pointer == true) && offsetWord(1)[0] == "@" ) {
                 outputCode.text.push(
                     `push ${left}`,
                     `push ${right}`,
-                    `push ${asam.typeToBits(tleft)}`,
+                    `push $-1`,
+                    `push $${tleft.size / 8}`,
                     `swap_stack`,
                     `call arrcmp`,
                     `swap_stack`,
-                    `mov _return32_, %eax`,
-                    `mov %al, ${lbl}`
+                    `cmp $0, %dl`,
+                    `${defines.condSet[offsetWord(1).substring(1)]} %cl`,
+                    `mov %cl, ${lbl}`
                 )
+                line[wordNum] = lbl
+                line.splice(wordNum + 1, 2)
             }
             else if (tleft.templatePtr != undefined || tright.templatePtr != undefined) {
                 // todo compare structures
@@ -856,7 +864,7 @@ function compileLine(line) {
         }
 
         // --------
-        if (requestMathFlag) {
+        if (requestMathFlag) { // if math
             line.splice(wordNum, 1); // deleter after fixing math 
             //throwE(line, wordNum)
             //console.log("~|||||~~|~|~|~|~|~|~||~|~|~|~|~~~~~LINE", line, wordNum, asm.formatLocal(word), userVariables)

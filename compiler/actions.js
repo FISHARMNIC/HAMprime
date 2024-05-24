@@ -93,6 +93,10 @@ module.exports = {
         // || (exists != null && exists.special == true) 
         return (parseFloat(x) == x || String(x).includes("_compLITERAL")) ? "$" + x : x
     },
+    formatIfConstantOrLiteralOrDblRef: function (x,type) { // add dollar sign
+        // awful. 
+        return (parseFloat(x) == x || String(x).includes("_compLITERAL") || type.dblRef) ? "$" + x : x
+    },
     castSimple: function (type, data) {
         var temp = this.requestTempLabel(type)
         this.twoStepLoadConst("auto", temp, data)
@@ -223,6 +227,13 @@ module.exports = {
         } else {
             var out = `${_name}: ${asm.typeToAsm(type)} `
             userVariables[_name] = objCopy(type); // assign type to variable
+            
+            // HERE DELETE BLOCK IF BROKEN MAY 23
+            userVariables[_name].dblRef = false
+            if(type.dblRef) {
+                userVariables[_name].pointer = true
+            }
+
             if (parseFloat(value) == value && inscope == 0) // constant number
             {
                 out += value // 123 abc HERE THIS IS NOT RESETING VAR IN FN?
@@ -230,11 +241,16 @@ module.exports = {
                 out += '0'
 
                 if (!dummy) {
-                    if (!type.dblRef && parseFloat(value) != value) {
-                        this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
-                    } else {
-                        this.twoStepLoadConst("auto", _name, value, type)
-                    }
+                    
+                    
+                    value = this.formatIfConstantOrLiteralOrDblRef(value, type)
+                    this.twoStepLoadPtr("auto", _name, value, type)
+                    
+                    // if (!type.dblRef && parseFloat(value) != value) {
+                    //     this.twoStepLoadPtr("auto", _name, value, type) //HERE IF BROKEN DELETE TYPE ON HERE AND 104
+                    // } else {
+                    //     this.twoStepLoadConst("auto", _name, value, type)
+                    // }
                 }
             }
             if (type.size == 64) {
