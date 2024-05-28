@@ -8,26 +8,21 @@
 .include "/Users/squijano/Documents/progLan2/compiler/assembly_libs/cmp.s"
 
 # additional libs
-
+.include "/Users/squijano/Documents/progLan2/compiler/libs/lists.s"
 
 .data
 __fpu_temp__: .4byte 0
 ######## user data section ########
-_loc_Square_len: .4byte 0
-_loc_Square_col: .4byte 0
+_loc_entry_counter: .4byte 0
 LABEL0: .4byte 0
-_loc_Square_height: .4byte 0
-_compLITERAL1: .asciz "blue"
-LABEL2: .4byte 0
-_loc_entry_myRoom: .4byte 0
-_compLITERAL3: .asciz "red"
-LABEL4: .4byte 0
-_loc_entry_dadsRoom: .4byte 0
-_compLITERAL5: .asciz "My room cubic feet: %i (should be 500)\n"
-_compLITERAL6: .asciz "Dads room square feet: %i (should be 20)\n"
+_loc_entry_myArr: .4byte 0
+LABEL1: .4byte 0
+_loc_entry_myList_length: .4byte 0
+_loc_entry_myList: .4byte 0
+_compLITERAL2: .asciz "var: %i\n"
+_compLITERAL3: .asciz "index: %i\n"
+_compLITERAL4: .asciz "length: %i\n"
 __TEMP32_0__: .4byte 0 
-__TEMP32_1__: .4byte 0 
-__TEMP32_2__: .4byte 0 
 ###################################
 .text
 
@@ -51,186 +46,127 @@ main:
     //swap_stack
     call entry
     ret
-Square__INITIALIZER__:
+entry:
 swap_stack
-pop %edx; mov %edx, _loc_Square_col
-pop %edx; mov %edx, _loc_Square_len
-mov _loc_Square_len, %eax
+mov $123, %eax
 pushl %eax
-mov _loc_Square_col, %eax
-pushl %eax
+mov $456, %edx
+mov %edx, 0(%esp)
 mov $0, %eax
 pushl %eax
 # ------ begin malloc ------
-pushl $8
+pushl $12
 swap_stack
 call __allocate__
 mov %eax, LABEL0
 swap_stack
 mov %eax, (%esp)
 # ------ end malloc --------
-push %eax
-# -- loading "_loc_Square_len" from stack --
-mov 12(%esp), %edx
-mov %edx, _loc_Square_len
-# -- loading "this" from stack --
-mov 0(%esp), %edx
-mov %edx, this
-# --- beginning property address read ---
-mov this, %edx
-add $0, %edx
-mov %edx, __TEMP32_0__
-######
-mov __TEMP32_0__, %edx
-mov _loc_Square_len, %eax
-mov %eax, (%edx)
-######
-# -- loading "_loc_Square_col" from stack --
-mov 8(%esp), %edx
-mov %edx, _loc_Square_col
-# -- loading "this" from stack --
-mov 0(%esp), %edx
-mov %edx, this
-# --- beginning property address read ---
-mov this, %edx
-add $4, %edx
-mov %edx, __TEMP32_0__
-######
-mov __TEMP32_0__, %edx
-mov _loc_Square_col, %eax
-mov %eax, (%edx)
-######
-# -- loading "this" from stack --
-mov 0(%esp), %edx
-mov %edx, this
-mov this, %eax
-mov %eax, __return_32__
-add $16, %esp
-swap_stack
-ret
-Square__METHOD_area__:
-swap_stack
-pushl this
-# -- loading "this" from stack --
-mov 0(%esp), %edx
-mov %edx, this
-# --- beginning property value read ---
-mov this, %edx
-add $0, %edx
-mov (%edx), %eax
-mov %eax, __TEMP32_0__
-# -- loading "this" from stack --
-mov 0(%esp), %edx
-mov %edx, this
-# --- beginning property value read ---
-mov this, %edx
-add $0, %edx
-mov (%edx), %eax
-mov %eax, __TEMP32_1__
-# --- math begin ---
-pusha
-xor %eax, %eax
-xor %ebx, %ebx
-xor %ecx, %ecx
-mov __TEMP32_1__, %eax
-mov __TEMP32_0__, %ebx
-mul %ebx
-mov %eax, __TEMP32_2__
-popa
-# --- math end ---
-mov __TEMP32_2__, %edx
-mov %edx, __return_32__
-add $4, %esp
-swap_stack
-ret
-add $4, %esp
-swap_stack
-ret
-Square__METHOD_volume__:
-swap_stack
-pop %edx; mov %edx, _loc_Square_height
-mov _loc_Square_height, %eax
+# ------- begin dynamic alloc and load -------
+movl $1, (%eax)
+add $4, %eax
+movl $1, (%eax)
+add $4, %eax
+movl $3, (%eax)
+add $4, %eax
+# ------- end dynamic alloc and load ---------
+mov LABEL0, %eax
 pushl %eax
-pushl this
-mov this, %eax
-mov %eax, this
-swap_stack
-call Square__METHOD_area__
-swap_stack
-# -- loading "_loc_Square_height" from stack --
-mov 4(%esp), %edx
-mov %edx, _loc_Square_height
-# --- math begin ---
-pusha
-xor %eax, %eax
-xor %ebx, %ebx
-xor %ecx, %ecx
-mov _loc_Square_height, %eax
-mov __return_32__, %ebx
-mul %ebx
-mov %eax, __TEMP32_1__
-popa
-# --- math end ---
-mov __TEMP32_1__, %edx
-mov %edx, __return_32__
-add $8, %esp
-swap_stack
-ret
-add $8, %esp
-swap_stack
-ret
-entry:
-swap_stack
+# -- loading "_loc_entry_myArr" from stack --
+mov 0(%esp), %edx
+mov %edx, _loc_entry_myArr
+# -- array load begin --
+mov _loc_entry_myArr, %eax
+mov $2, %ebx
+mov %ebx, 8(%eax)
+# --- array load end ---
+# -- loading "_loc_entry_myArr" from stack --
+mov 0(%esp), %edx
+mov %edx, _loc_entry_myArr
 mov $0, %eax
 pushl %eax
 # ------ begin malloc ------
-pushl $8
+pushl $12
 swap_stack
 call __allocate__
-mov %eax, LABEL2
+mov %eax, LABEL1
 swap_stack
 mov %eax, (%esp)
 # ------ end malloc --------
-add $0, %eax
-movl $10, (%eax)
+# ------- begin dynamic alloc and load -------
+movl $4, (%eax)
 add $4, %eax
-mov $_compLITERAL1, %edx
-mov %edx, (%eax)
-# ------ end format alloc ------
-mov LABEL2, %edx
-mov %edx, _loc_entry_myRoom
-pushl $20
+movl $5, (%eax)
+add $4, %eax
+movl $6, (%eax)
+add $4, %eax
+# ------- end dynamic alloc and load ---------
+mov $3, %edx
+mov %edx, _loc_entry_myList_length
+mov LABEL1, %eax
+pushl %eax
+mov _loc_entry_myList_length, %eax
+pushl %eax
+# -- loading "_loc_entry_myList" from stack --
+mov 4(%esp), %edx
+mov %edx, _loc_entry_myList
+# -- loading "_loc_entry_myList_length" from stack --
+mov 0(%esp), %edx
+mov %edx, _loc_entry_myList_length
+# -- array append begin --
+push _loc_entry_myList
+push _loc_entry_myList_length
+swap_stack
+call realloc_rapid
+swap_stack
+mov __return_32__, %eax
+mov %eax, _loc_entry_myList
+# --- array append end ---
+# -- array load begin --
+mov _loc_entry_myList, %eax
+mov $7, %ebx
+mov _loc_entry_myList_length, %ecx
+mov %ebx, (%eax, %ecx, 4)
+incl _loc_entry_myList_length
+mov _loc_entry_myList_length, %edx
+mov %edx, 0(%esp)
+# --- array load end ---
+# -- loading "_loc_entry_myList" from stack --
+mov 4(%esp), %edx
+mov %edx, _loc_entry_myList
+# -- loading "_loc_entry_counter" from stack --
+mov 20(%esp), %edx
+mov %edx, _loc_entry_counter
+pushl _loc_entry_counter
+pushl $_compLITERAL2
+swap_stack
+call printf_mini
+swap_stack
+# -- array read begin --
+mov _loc_entry_myArr, %eax
+mov 8(%eax), %ebx
+mov %ebx, __TEMP32_0__
+# --- array read end ---
+mov $777, %eax
+push %eax
+
+xor %ebx, %ebx
+mov 0(%esp), %bx
+pop %eax
+push %ebx
 pushl $_compLITERAL3
 swap_stack
-call Square__INITIALIZER__
+call printf_mini
 swap_stack
-mov $0, %eax
-pushl %eax
-mov __return_32__, %eax
-mov %eax, 0(%esp)
-mov __return_32__, %edx
-mov %edx, _loc_entry_dadsRoom
-mov _loc_entry_myRoom, %eax
-mov %eax, this
-pushl $5
-swap_stack
-call Square__METHOD_volume__
-swap_stack
-pushl __return_32__
-pushl $_compLITERAL5
+# -- loading "_loc_entry_myList_length" from stack --
+mov 0(%esp), %edx
+mov %edx, _loc_entry_myList_length
+pushl _loc_entry_myList_length
+pushl $_compLITERAL4
 swap_stack
 call printf_mini
 swap_stack
-# --- beginning property value read ---
-mov _loc_entry_dadsRoom, %edx
-add $0, %edx
-mov (%edx), %eax
-mov %eax, __TEMP32_0__
-pushl __TEMP32_0__
-pushl $_compLITERAL6
+add $24, %esp
 swap_stack
-call printf_mini
-swap_stack
-add $8, %esp
-swap_stack
+push 0(%esp)
 ret

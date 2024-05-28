@@ -118,12 +118,13 @@ function start() {
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/pointers/deref.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest2.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/array_comparison/a.x"
-    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/shape.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/classes/shape.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/cliargs/arg.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/str.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/nest.x"
+    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/formats/format.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/lib_files/read.x"
-    //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
+    const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/stackVars/stackVars.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/recursiveSum.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/plans/static.x"
     //const INPUTFILE = "/Users/squijano/Documents/progLan2/examples/tests/functions/function.x"
@@ -939,7 +940,7 @@ function compileMultiple(lines) {
             x.splice(x.indexOf("transient"), 1);
         }
 
-        compileLine(x)
+        debugPrint("----", compileLine(x))
 
         if (forceP) {
             localDynaMemInLine.forEach(n => {
