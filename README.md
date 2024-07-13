@@ -21,8 +21,8 @@ A 32bit compiled programming language that runs on Linux
 * Speed of C
   * ###### Tested by printing the result of 1000 floating point operations 
   * <img width="600" alt="Screen Shot 2024-03-17 at 1 42 33 PM" src="https://github.com/FISHARMNIC/HAMprime/assets/73864341/b7864d62-e86b-43ae-b65c-cff7a70014ab">
-
-## Note:
+---
+# Note:
 I am currently developing a new compiler for this language which has a lot more optimizations and works better than this compiler. However, the new compiler is still lacking many features as I just started its development. It can be viewed [here](https://github.com/FISHARMNIC/HAMprimeC2)
 
 # How to run
