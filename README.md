@@ -3,6 +3,9 @@
 A 32bit compiled programming language that runs on Linux
 # [Docs Link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
 
+# Note: See newer compiler [here](https://github.com/FISHARMNIC/HAMprimeC2)
+I have stopped working on this project and have begun writing a new compiler for this language. The new compiler lacks some features (for now) since it is *much* more optimized and it takes a lot longer to implement new things. There is better documentation on this repository so I am leaving it up.
+
 # What makes it unique / Why use it?
 * "Simple but complex"
   * Automatic operations like dynamic typing, typeless arrays, and automatic re-allocation
@@ -22,8 +25,6 @@ A 32bit compiled programming language that runs on Linux
   * ###### Tested by printing the result of 1000 floating point operations 
   * <img width="600" alt="Screen Shot 2024-03-17 at 1 42 33 PM" src="https://github.com/FISHARMNIC/HAMprime/assets/73864341/b7864d62-e86b-43ae-b65c-cff7a70014ab">
 ---
-# Note:
-I am currently developing a new compiler for this language which has a lot more optimizations and works better than this compiler. However, the new compiler is still lacking many features as I just started its development. It can be viewed [here](https://github.com/FISHARMNIC/HAMprimeC2)
 
 # How to run
 * In `main.js` under the function `start`, there is a variable called `INPUTFILE`. Set that to the directory of the file that you want compiled
