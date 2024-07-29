@@ -3,7 +3,7 @@
 A 32bit compiled programming language that runs on Linux
 # [Docs Link](https://docs.google.com/document/d/1dvrnv1i9j71S5V8oIfRu-QUAKFk0uw6s5r6wOy7J6vY/edit?usp=sharing)
 
-# Note: See newer compiler [here](https://github.com/FISHARMNIC/HAMprimeC2)
+# IMPORTANT: See newer compiler [here](https://github.com/FISHARMNIC/HAMprimeC2)
 I have stopped working on this project and have begun writing a new compiler for this language. The new compiler lacks some features (for now) since it is *much* more optimized and it takes a lot longer to implement new things. There is better documentation on this repository so I am leaving it up.
 
 # What makes it unique / Why use it?
